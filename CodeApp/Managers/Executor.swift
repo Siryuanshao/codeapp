@@ -16,7 +16,7 @@ class Executor {
         case interactive
     }
 
-    private let persistentIdentifier: String
+    private let sessionIdentifier: UnsafeMutablePointer<CChar>
     private var pid: pid_t? = nil
 
     private var stdin_file: UnsafeMutablePointer<FILE>?
@@ -46,7 +46,7 @@ class Executor {
         onStderr: @escaping ((_ data: Data) -> Void),
         onRequestInput: @escaping ((_ prompt: String) -> Void)
     ) {
-        persistentIdentifier = sessionIdentifier
+        self.sessionIdentifier = sessionIdentifier.withCString { strdup($0)! }
         currentWorkingDirectory = root
         prompt = "\(root.lastPathComponent) $ "
         receivedStdout = onStdout
@@ -60,6 +60,7 @@ class Executor {
 
     deinit {
         NotificationCenter.default.removeObserver(self)
+        free(sessionIdentifier)
     }
 
     func evaluateCommands(_ cmds: [String]) {
@@ -89,16 +90,15 @@ class Executor {
     }
 
     func kill() {
-        if javascriptRunning {
-            javascriptRunning = false
+        if stopWebAssembly(session: UnsafeRawPointer(sessionIdentifier)) {
             return
         }
-        ios_switchSession(persistentIdentifier.toCString())
+        ios_switchSession(sessionIdentifier)
         ios_kill()
     }
 
     func setWindowSize(cols: Int, rows: Int) {
-        ios_setWindowSize(Int32(cols), Int32(rows), persistentIdentifier.toCString())
+        ios_setWindowSize(Int32(cols), Int32(rows), sessionIdentifier)
     }
 
     func sendInput(input: String) {
@@ -111,7 +111,7 @@ class Executor {
             stdinString += input + "\n"
         }
 
-        ios_switchSession(persistentIdentifier.toCString())
+        ios_switchSession(sessionIdentifier)
 
         stdin_file_input?.write(data)
 
@@ -124,28 +124,29 @@ class Executor {
     }
 
     private func _onStdout(data: Data) {
-        let str = String(decoding: data, as: UTF8.self)
+        let finished = data.contains(0x04)
+        let output = finished ? Data(data.filter { $0 != 0x04 }) : data
+        let str = String(decoding: output, as: UTF8.self)
 
-        if str.contains(END_OF_TRANSMISSION) {
-            stdout_active = false
-            return
-        }
-
-        DispatchQueue.main.async {
-            if self.state == .running {
-                // Interactive Commands /with control characters
-                if str.contains("\u{8}") || str.contains("\u{13}") || str.contains("\r") {
-                    self.receivedStdout(data)
-                    return
+        if !output.isEmpty {
+            DispatchQueue.main.async {
+                if self.state == .running {
+                    // Interactive Commands /with control characters
+                    if str.contains("\u{8}") || str.contains("\u{13}") || str.contains("\r") {
+                        self.receivedStdout(output)
+                        return
+                    }
+                    self.requestInput(str)
+                    if let prom = str.components(separatedBy: "\n").last {
+                        self.prompt = prom
+                    }
+                } else {
+                    self.receivedStdout(output)
                 }
-                self.requestInput(str)
-                if let prom = str.components(separatedBy: "\n").last {
-                    self.prompt = prom
-                }
-            } else {
-                self.receivedStdout(data)
             }
         }
+
+        if finished { stdout_active = false }
     }
 
     private func onStdout(_ stdout: FileHandle) {
@@ -208,9 +209,9 @@ class Executor {
             self.lastCommand = command
             Thread.current.name = command
 
-            ios_switchSession(self.persistentIdentifier.toCString())
+            ios_switchSession(self.sessionIdentifier)
             ios_setDirectoryURL(self.currentWorkingDirectory)
-            ios_setContext(UnsafeMutableRawPointer(mutating: self.persistentIdentifier.toCString()))
+            ios_setContext(self.sessionIdentifier)
             ios_setStreams(self.stdin_file, self.stdout_file, self.stdout_file)
 
             let code = self.run(command: command)
@@ -265,8 +266,9 @@ class Executor {
         thread_stderr = nil
 
         pid = ios_fork()
-        let returnCode = ios_system(command)
+        _ = ios_system(command)
         ios_waitpid(pid!)
+        let returnCode = ios_getCommandStatus()
         ios_releaseThreadId(pid!)
         pid = nil
 

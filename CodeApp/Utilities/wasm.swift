@@ -538,7 +538,19 @@ class WasmWebView: WKWebView {
 
 var wasmWebView = WasmWebView()
 
-var javascriptRunning = false  // We can't execute JS while we are already executing JS.
+private let wasmExecutionLock = NSLock()
+private var javascriptRunning = false
+private var wasmSession: UnsafeRawPointer?
+
+func stopWebAssembly(session: UnsafeRawPointer) -> Bool {
+    wasmExecutionLock.lock()
+    defer { wasmExecutionLock.unlock() }
+    guard javascriptRunning && wasmSession == session else { return false }
+    DispatchQueue.main.async {
+        wasmWebView.evaluateJavaScript("stopWebAssembly()")
+    }
+    return true
+}
 
 // copies of thread_std*, used when inside a sub-thread, for example executing webAssembly
 private var thread_stdin_copy: UnsafeMutablePointer<FILE>? = nil
@@ -596,47 +608,51 @@ private func executeWebAssembly(arguments: [String]?) -> Int32 {
         "return await executeWebAssembly(\"\(base64string)\", " + argumentString + ", \""
         + currentDirectory
         + "\", \(ios_isatty(STDIN_FILENO)), " + environmentAsJSDictionary + ")"
+    wasmExecutionLock.lock()
     if javascriptRunning {
+        wasmExecutionLock.unlock()
         fputs(
             "We can't execute webAssembly while we are already executing webAssembly.",
             thread_stderr)
         return -1
     }
     javascriptRunning = true
-    var errorCode: Int32 = 0
+    wasmSession = ios_getContext().map { UnsafeRawPointer($0) }
+    var errorCode: Int32 = 1
+    var wasStopped = false
+    let completion = DispatchSemaphore(value: 0)
     thread_stdin_copy = thread_stdin
     thread_stdout_copy = thread_stdout
     thread_stderr_copy = thread_stderr
     DispatchQueue.main.async {
         wasmWebView.callAsyncJavaScript(javascript, arguments: [:], in: nil, in: .page) {
             result in
-            let result = try? result.get()
-
-            if result != nil {
-                // executeWebAssembly sends back stdout and stderr as two Strings:
-                if let array = result! as? NSMutableArray {
-                    if let code = array[0] as? Int32 {
-                        // return value from program
-                        errorCode = code
-                    }
-                    if let errorMessage = array[1] as? String {
-                        // webAssembly compile error:
-                        fputs(errorMessage, thread_stderr_copy)
-                    }
-                } else if let string = result! as? String {
-                    fputs(string, thread_stdout_copy)
-                }
+            if let value = try? result.get(), let outcome = value as? [Any],
+                let code = outcome.first as? Int32, let stopped = outcome.last as? Bool
+            {
+                wasStopped = stopped
+                errorCode = stopped ? 130 : code
             }
+            wasmExecutionLock.lock()
             javascriptRunning = false
+            wasmSession = nil
+            wasmExecutionLock.unlock()
+            completion.signal()
         }
     }
-    // force synchronization:
-    while javascriptRunning {
+    wasmExecutionLock.unlock()
+    while completion.wait(timeout: .now() + 0.05) == .timedOut {
         if thread_stdout != nil { fflush(thread_stdout) }
         if thread_stderr != nil { fflush(thread_stderr) }
-        //        usleep(300000)
     }
-    fputs("\n", thread_stdout_copy)
+    let message =
+        wasStopped
+        ? NSLocalizedString("terminal.process.stopped", value: "Program stopped.", comment: "")
+        : String(
+            format: NSLocalizedString(
+                "terminal.process.exited", value: "Program exited with code: %d", comment: ""),
+            errorCode)
+    fputs("\n\(message)\n", thread_stdout_copy)
     //    usleep(300000) // 0.3 second
     return errorCode
 }

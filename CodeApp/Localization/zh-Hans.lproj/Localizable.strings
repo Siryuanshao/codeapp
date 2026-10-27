@@ -663,6 +663,8 @@
 "panel.execution.title" = "执行";
 
 "local.execution.title" = "本地执行";
+"terminal.process.exited" = "程序已退出，返回码：%d";
+"terminal.process.stopped" = "程序已停止。";
 
 "remote.setup_remote_server" = "有关远程访问功能的文档";
 "remote.private_key_content" = "私钥内容";

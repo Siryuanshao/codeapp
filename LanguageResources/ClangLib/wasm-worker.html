@@ -31,15 +31,28 @@
             }
         };
 
+        let runningExecution = null;
+
+        function stopWebAssembly() {
+            if (runningExecution) {
+                runningExecution.worker.terminate();
+                Atomics.store(runningExecution.signal, 0, -1);
+                Atomics.notify(runningExecution.signal, 0);
+            }
+        }
+
         async function executeWebAssembly(bufferString, args, cwd, tty, env) {
             const worker = new Worker("worker.js");
             worker.onmessage = messageHandler;
             const sab = new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT * 8192);
             const int32 = new Int32Array(sab);
+            runningExecution = { worker, signal: int32 };
             worker.postMessage([bufferString, args, cwd, tty, env, sab]);
             await Atomics.waitAsync(int32, 0, 0, 120000).value;
             worker.terminate();
-            return int32[0];
+            runningExecution = null;
+            const stopped = int32[0] !== 1;
+            return [stopped ? 0 : int32[1], stopped];
         }
     </script>
 </body>

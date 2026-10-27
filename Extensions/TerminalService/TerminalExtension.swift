@@ -23,6 +23,17 @@ private struct ToolbarView: View {
 
     var body: some View {
         HStack(spacing: 12) {
+            Button(action: {
+                guard let terminal = App.terminalManager.activeTerminal else { return }
+                if terminal.executor?.state == .running || terminal.terminalServiceProvider != nil {
+                    terminal.sendInterrupt()
+                }
+            }) {
+                Image(systemName: "stop.fill")
+            }
+            .help("Kill Process")
+            .accessibilityLabel("Kill Process")
+
             if App.terminalManager.canCreateNewTerminal {
                 Button(action: {
                     App.terminalManager.createTerminal()

@@ -95,14 +95,12 @@ function executeWebAssembly(bufferString, args, cwd, tty, env) {
         // window.webkit.messageHandlers.aShell.postMessage('WebAssembly error: ' + error);
         // WASI returns an error even in some cases where things went well.
         // We find the type of the error, and return the appropriate error message
-        if (error.code === 'undefined') {
-            errorCode = 1;
-            errorMessage = '\nwasm: ' + error + '\n';
-        } else if (error.code != null) {
+        if (typeof error.code === 'number') {
             // Numerical error code. Send the return code back to Swift.
             errorCode = error.code;
         } else {
             errorCode = 1;
+            errorMessage = '\nwasm: ' + error + '\n';
         }
     }
     return [errorCode, errorMessage];
@@ -128,9 +126,10 @@ prompt = (p) => {
 onmessage = (e) => {
     const int32 = new Int32Array(e.data[5]);
 
-    executeWebAssembly(e.data[0], e.data[1], e.data[2], e.data[3], e.data[4]);
+    const [exitCode] = executeWebAssembly(e.data[0], e.data[1], e.data[2], e.data[3], e.data[4]);
 
     // Finishing execution
+    Atomics.store(int32, 1, exitCode);
     Atomics.store(int32, 0, 1);
     Atomics.notify(int32, 0, 1);
 };
