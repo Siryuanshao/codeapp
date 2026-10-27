@@ -49,6 +49,7 @@ extension WKWebView {
 
 class MonacoImplementation: NSObject {
     private var monacoWebView = WebViewBase()
+    private let completionClient = UUID()
     var options: EditorOptions {
         didSet {
             Task { await configureCustomOptions() }
@@ -75,6 +76,7 @@ class MonacoImplementation: NSObject {
         if !monacoWebView.isMessageHandlerAdded {
             let contentManager = monacoWebView.configuration.userContentController
             contentManager.add(self, name: "toggleMessageHandler")
+            contentManager.addScriptMessageHandler(self, contentWorld: .page, name: "cppCompletion")
             monacoWebView.isMessageHandlerAdded = true
         }
 
@@ -87,6 +89,12 @@ class MonacoImplementation: NSObject {
         await monacoWebView.removeUIDropInteraction()
         await configureCustomOptions()
         await configureTheme()
+        if let script = try? String(
+            contentsOf: Resources.clangLib.appendingPathComponent("cpp-completion.js"),
+            encoding: .utf8)
+        {
+            _ = try? await monacoWebView.evaluateJavaScriptAsync(script)
+        }
 
         // Built-in Node.js types
         await injectTypes(
@@ -219,6 +227,28 @@ class MonacoImplementation: NSObject {
             _ = try? await monacoWebView.evaluateJavaScriptAsync(
                 "monaco.languages.typescript.typescriptDefaults.addExtraLib(decodeURIComponent(escape(window.atob('\(encodedContent)'))),'\(path)')"
             )
+        }
+    }
+}
+
+extension MonacoImplementation: WKScriptMessageHandlerWithReply {
+    func userContentController(
+        _ userContentController: WKUserContentController, didReceive message: WKScriptMessage,
+        replyHandler: @escaping (Any?, String?) -> Void
+    ) {
+        guard (UserDefaults.standard.object(forKey: "languageServiceEnabled") as? Bool ?? true),
+            let body = message.body as? [String: Any],
+            let source = body["source"] as? String,
+            let uri = body["uri"] as? String, let url = URL(string: uri), url.isFileURL,
+            let line = body["line"] as? Int, let column = body["column"] as? Int
+        else {
+            replyHandler([], nil)
+            return
+        }
+        ClangCompletionService.shared.complete(
+            source: source, url: url, line: line, column: column, client: completionClient
+        ) { results in
+            replyHandler(results, nil)
         }
     }
 }
