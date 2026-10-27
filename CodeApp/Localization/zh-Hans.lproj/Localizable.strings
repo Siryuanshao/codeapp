@@ -665,6 +665,26 @@
 "local.execution.title" = "本地执行";
 "terminal.process.exited" = "程序已退出，返回码：%d";
 "terminal.process.stopped" = "程序已停止。";
+"CPP_DEBUG" = "调试";
+"debug.idle" = "点击行号旁的空白处设置断点，然后开始调试。";
+"debug.compiling" = "正在编译…";
+"debug.starting" = "正在启动调试器…";
+"debug.running" = "正在运行";
+"debug.paused" = "已暂停";
+"debug.finished" = "调试已结束";
+"debug.continue" = "继续";
+"debug.step_over" = "单步跳过";
+"debug.step_in" = "单步进入";
+"debug.step_out" = "单步跳出";
+"debug.restart" = "重新开始调试";
+"debug.stop" = "停止调试";
+"debug.variables" = "变量";
+"debug.output" = "输出";
+"debug.input" = "程序输入";
+"debug.send" = "发送";
+"debug.save_failed" = "无法保存当前文件。";
+"debug.compile_failed" = "调试编译失败。";
+"debug.temporary_filesystem" = "调试时程序访问的文件位于临时环境中。";
 
 "remote.setup_remote_server" = "有关远程访问功能的文档";
 "remote.private_key_content" = "私钥内容";

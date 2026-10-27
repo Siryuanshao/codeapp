@@ -567,6 +567,26 @@ are licensed under [BSD-3-Clause License](https://en.wikipedia.org/wiki/BSD_lice
 "local.execution.title" = "Local Execution";
 "terminal.process.exited" = "Program exited with code: %d";
 "terminal.process.stopped" = "Program stopped.";
+"CPP_DEBUG" = "Debug";
+"debug.idle" = "Set a breakpoint by tapping the gutter, then start debugging.";
+"debug.compiling" = "Compiling…";
+"debug.starting" = "Starting debugger…";
+"debug.running" = "Running";
+"debug.paused" = "Paused";
+"debug.finished" = "Debugging finished";
+"debug.continue" = "Continue";
+"debug.step_over" = "Step Over";
+"debug.step_in" = "Step Into";
+"debug.step_out" = "Step Out";
+"debug.restart" = "Restart Debugging";
+"debug.stop" = "Stop Debugging";
+"debug.variables" = "Variables";
+"debug.output" = "Output";
+"debug.input" = "Program input";
+"debug.send" = "Send";
+"debug.save_failed" = "Could not save the current file.";
+"debug.compile_failed" = "Debug compilation failed.";
+"debug.temporary_filesystem" = "Files accessed by a debugged program are temporary.";
 
 "remote.setup_remote_server" = "Documentation on remote access feature";
 "remote.private_key_content" = "Private key content";

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 private let EXTENSION_ID = "LOCAL_EXECUTION"
 
@@ -40,6 +41,23 @@ class LocalExecutionExtension: CodeAppExtension {
             }
         )
         contribution.toolBar.registerItem(item: toolbarItem)
+
+        contribution.panel.registerPanel(panel: Panel(
+            labelId: "CPP_DEBUG",
+            mainView: AnyView(CPPDebugPanel(debugger: app.cppDebugger)),
+            toolBarView: nil
+        ))
+        contribution.toolBar.registerItem(item: ToolbarItem(
+            extenionID: "CPP_DEBUG",
+            icon: "ladybug",
+            onClick: { app.cppDebugger.start(app: app) },
+            panelToFocusOnTap: "CPP_DEBUG",
+            shouldDisplay: { app in
+                guard let editor = app.activeTextEditor else { return false }
+                return !app.runeStoneEditorEnabled && editor.url.isFileURL
+                    && ["c", "cpp", "cc", "cxx"].contains(editor.languageIdentifier.lowercased())
+            }
+        ))
     }
 
     private func runCodeLocally(app: MainApp) async {

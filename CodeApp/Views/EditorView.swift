@@ -23,6 +23,7 @@ struct EditorView: View {
     @SceneStorage("sidebar.visible") var isSideBarVisible: Bool = DefaultUIState.SIDEBAR_VISIBLE
 
     @State var targeted: Bool = false
+    @State private var editorSize: CGSize = .zero
 
     func onDropURL(url: URL) {
         // TODO: Determine whether file is directory
@@ -120,6 +121,17 @@ struct EditorView: View {
                     Spacer()
                 }
 
+            }
+            .background(
+                GeometryReader { geometry in
+                    Color.clear
+                        .onAppear { editorSize = geometry.size }
+                        .onChange(of: geometry.size) { editorSize = $0 }
+                }
+            )
+            .overlay(alignment: .top) {
+                CPPDebugFloatingToolbar(debugger: App.cppDebugger, availableSize: editorSize)
+                    .padding(.top, 6)
             }
             .onReceive(
                 NotificationCenter.default.publisher(

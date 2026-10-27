@@ -651,6 +651,8 @@
 		949B3CBB25DBCCDC00BC83B5 /* MonacoIntellisenseExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949B3CBA25DBCCDB00BC83B5 /* MonacoIntellisenseExtension.swift */; };
 		949B3CC525DEA89B00BC83B5 /* String+toCString.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949B3CC425DEA89A00BC83B5 /* String+toCString.swift */; };
 		949B3CC725DEAAA700BC83B5 /* node.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949B3CC625DEAAA600BC83B5 /* node.swift */; };
+		CB06A9100000000000000002 /* CPPDebugger.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB06A9100000000000000001 /* CPPDebugger.swift */; };
+		CB06A9100000000000000003 /* CPPDebugger.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB06A9100000000000000001 /* CPPDebugger.swift */; };
 		949CDF4A2C6658DC00FFC5B1 /* LanguageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949CDF492C6658DC00FFC5B1 /* LanguageService.swift */; };
 		949CDF4B2C6658DC00FFC5B1 /* LanguageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949CDF492C6658DC00FFC5B1 /* LanguageService.swift */; };
 		949CDF4D2C6C47AD00FFC5B1 /* LSPFrameAdaptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949CDF4C2C6C47AD00FFC5B1 /* LSPFrameAdaptor.swift */; };
@@ -1854,6 +1856,7 @@
 		949B3CBA25DBCCDB00BC83B5 /* MonacoIntellisenseExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonacoIntellisenseExtension.swift; sourceTree = "<group>"; };
 		949B3CC425DEA89A00BC83B5 /* String+toCString.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+toCString.swift"; sourceTree = "<group>"; };
 		949B3CC625DEAAA600BC83B5 /* node.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = node.swift; sourceTree = "<group>"; };
+		CB06A9100000000000000001 /* CPPDebugger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CPPDebugger.swift; sourceTree = "<group>"; };
 		949CDF492C6658DC00FFC5B1 /* LanguageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageService.swift; sourceTree = "<group>"; };
 		949CDF4C2C6C47AD00FFC5B1 /* LSPFrameAdaptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LSPFrameAdaptor.swift; sourceTree = "<group>"; };
 		949D787E2C33C4EB006D7480 /* Java.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Java.swift; sourceTree = "<group>"; };
@@ -3167,6 +3170,7 @@
 				9434C3EE2BA2CCBB00EB1CF6 /* WASMService.swift */,
 				949D78842C33DA48006D7480 /* AppExtensionService.swift */,
 				949CDF492C6658DC00FFC5B1 /* LanguageService.swift */,
+				CB06A9100000000000000001 /* CPPDebugger.swift */,
 			);
 			path = Managers;
 			sourceTree = "<group>";
@@ -3768,6 +3772,7 @@
 				9FA122682A8B2AC300E7B417 /* EditorLineColumnIndicator.swift in Sources */,
 				94795C4C293259080057C12F /* Encoding.swift in Sources */,
 				949CDF4B2C6658DC00FFC5B1 /* LanguageService.swift in Sources */,
+				CB06A9100000000000000002 /* CPPDebugger.swift in Sources */,
 				94A046262804A67100182275 /* SourceControlSection.swift in Sources */,
 				94A04608280493C600182275 /* SourceControlCloneSection.swift in Sources */,
 				FFD081BC29260B00001D9373 /* Libgit2Error.swift in Sources */,
@@ -3962,6 +3967,7 @@
 				9FA122672A8B2AC300E7B417 /* EditorLineColumnIndicator.swift in Sources */,
 				94795C4B293259080057C12F /* Encoding.swift in Sources */,
 				949CDF4A2C6658DC00FFC5B1 /* LanguageService.swift in Sources */,
+				CB06A9100000000000000003 /* CPPDebugger.swift in Sources */,
 				94A046252804A67100182275 /* SourceControlSection.swift in Sources */,
 				94A04607280493C600182275 /* SourceControlCloneSection.swift in Sources */,
 				FFD081BB29260B00001D9373 /* Libgit2Error.swift in Sources */,

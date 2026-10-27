@@ -50,6 +50,7 @@ extension WKWebView {
 class MonacoImplementation: NSObject {
     private var monacoWebView = WebViewBase()
     private let completionClient = UUID()
+    weak var cppDebugger: CPPDebugger?
     var options: EditorOptions {
         didSet {
             Task { await configureCustomOptions() }
@@ -91,6 +92,12 @@ class MonacoImplementation: NSObject {
         await configureTheme()
         if let script = try? String(
             contentsOf: Resources.clangLib.appendingPathComponent("cpp-completion.js"),
+            encoding: .utf8)
+        {
+            _ = try? await monacoWebView.evaluateJavaScriptAsync(script)
+        }
+        if let script = try? String(
+            contentsOf: Resources.clangLib.appendingPathComponent("debugger/editor.js"),
             encoding: .utf8)
         {
             _ = try? await monacoWebView.evaluateJavaScriptAsync(script)
@@ -229,6 +236,17 @@ class MonacoImplementation: NSObject {
             )
         }
     }
+
+    func debugBreakpoints() async -> [Int] {
+        (try? await monacoWebView.evaluateJavaScriptAsync("codeAppDebugBreakpoints()")) as? [Int]
+            ?? []
+    }
+
+    func showDebugLine(url: URL, line: Int) async {
+        guard let uri = url.absoluteString.base64Encoded() else { return }
+        _ = try? await monacoWebView.evaluateJavaScriptAsync(
+            "codeAppDebugShowLine(decodeURIComponent(escape(atob('\(uri)'))), \(line))")
+    }
 }
 
 extension MonacoImplementation: WKScriptMessageHandlerWithReply {
@@ -264,6 +282,11 @@ extension MonacoImplementation: WKScriptMessageHandler {
         }
 
         switch event {
+        case "C++ Breakpoints Changed":
+            guard let uri = result["URI"] as? String, let lines = result["lines"] as? [Int] else {
+                return
+            }
+            cppDebugger?.breakpointsChanged(uri: uri, lines: lines)
         case "focus":
             delegate?.didEnterFocus()
         case "Request Diff Update":

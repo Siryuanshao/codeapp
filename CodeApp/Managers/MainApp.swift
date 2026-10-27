@@ -146,6 +146,7 @@ class MainApp: ObservableObject {
     let directoryPickerManager = DirectoryPickerManager()
     let createFileSheetManager = CreateFileSheetManager()
     let authenticationRequestManager = AuthenticationRequestManager()
+    let cppDebugger = CPPDebugger()
 
     @Published var editors: [EditorInstance] = []
     var textEditors: [TextEditorInstance] {
@@ -319,6 +320,7 @@ class MainApp: ObservableObject {
             monacoInstance = MonacoImplementation(
                 options: editorOptions.value,
                 theme: EditorTheme(dark: ThemeManager.darkTheme, light: ThemeManager.lightTheme))
+            (monacoInstance as? MonacoImplementation)?.cppDebugger = cppDebugger
         }
         monacoInstance.delegate = self
         for textEditor in textEditors {
