@@ -1,0 +1,775 @@
+diff --git a/src/debug/dap.rs b/src/debug/dap.rs
+index c21e7f7..086639a 100644
+--- a/src/debug/dap.rs
++++ b/src/debug/dap.rs
+@@ -1,7 +1,7 @@
+ use std::collections::HashMap;
+ 
+-use anyhow::{anyhow, Context, Result};
+-use serde_json::{json, Value};
++use anyhow::{Context, Result, anyhow};
++use serde_json::{Value, json};
+ use wasm_bindgen::JsValue;
+ 
+ use crate::dap::debugger::DapDebugger;
+@@ -52,7 +52,10 @@ pub struct DwarfBackend {
+ 
+ impl DwarfBackend {
+     pub fn new(debugger: Ref<Debugger>) -> Self {
+-        Self { debugger, vars: DwarfVars::default() }
++        Self {
++            debugger,
++            vars: DwarfVars::default(),
++        }
+     }
+ 
+     fn scope_response(&mut self, name: &str, vars: Vec<Variable>) -> Value {
+@@ -71,8 +74,10 @@ impl DwarfBackend {
+         let sub_ref = if counts.is_empty() {
+             0
+         } else {
+-            self.vars
+-                .allocate(DwarfRef::Variable { var: var.clone(), counts: counts.clone() })
++            self.vars.allocate(DwarfRef::Variable {
++                var: var.clone(),
++                counts: counts.clone(),
++            })
+         };
+ 
+         let display = match var.display() {
+@@ -88,6 +93,14 @@ impl DwarfBackend {
+         });
+ 
+         if let Some(map) = value.as_object_mut() {
++            if matches!(
++                var.ty().resolved(),
++                Some(crate::debug::TypeDeclaration::Array { .. })
++            ) {
++                // Non-standard metadata lets clients summarize arrays whose
++                // displayed type is a typedef or has an unknown bound.
++                map.insert("codeappArrayLength".into(), json!(var.ty().array_length()));
++            }
+             if counts.indexed > 0 {
+                 map.insert("indexedVariables".into(), counts.indexed.into());
+             }
+diff --git a/src/debug/debug.rs b/src/debug/debug.rs
+index 843046d..c876610 100644
+--- a/src/debug/debug.rs
++++ b/src/debug/debug.rs
+@@ -1,9 +1,12 @@
+ use std::cell::OnceCell;
+ use std::rc::Rc;
+ 
+-use crate::debug::dwarf::{Die, Location, R};
++use crate::debug::dwarf::{Die, DieReference, Location, R};
+ use crate::debug::formatters::{self, VariableFormatter};
+-use crate::debug::{Type, TypeGraph, Variable, get_location, get_variables as debug_get_variables};
++use crate::debug::{
++    Type, TypeDeclaration, TypeGraph, Variable, get_globals, get_location,
++    get_variables as debug_get_variables,
++};
+ use crate::types::{
+     BreakpointMode, CodeOffset, DebugFunction, DebugInfo, MemoryDescriptor, WasmLocation,
+ };
+@@ -56,6 +59,7 @@ pub struct Debugger {
+     me: WeakRef<Self>,
+     info: DebugInfo,
+     types: Ref<TypeGraph>,
++    globals: Vec<Vec<DieReference>>,
+     state: js_sys::Int32Array,
+     formatters: Vec<FormatterCategory>,
+ }
+@@ -65,11 +69,21 @@ impl Debugger {
+         Ref::new_cyclic(|me| {
+             let state = info.get_bp_state();
+             let types = TypeGraph::new(me, &info.dwarf);
++            let globals = info
++                .dwarf
++                .units()
++                .iter()
++                .map(|unit| {
++                    unit.root(&info.dwarf)
++                        .map_or_else(Vec::new, |root| get_globals(&root))
++                })
++                .collect();
+             Self {
+                 me: me.clone(),
+                 info,
+                 state,
+                 types,
++                globals,
+                 formatters: vec![
+                     FormatterCategory {
+                         name: "default",
+@@ -271,6 +285,55 @@ impl Debugger {
+             }
+         }
+ 
++        for reference in &self.globals[die.ctx().unit.index()] {
++            let Ok(var_die) = reference.deref(&self.info.dwarf) else {
++                continue;
++            };
++            let Some(name) = var_die.qualified_name() else {
++                continue;
++            };
++            let Some(type_id) = var_die.type_ref().or_else(|| {
++                var_die
++                    .die_ref_attr(gimli::DW_AT_specification)
++                    .and_then(|spec| spec.deref(&self.info.dwarf).ok())
++                    .and_then(|spec| spec.type_ref())
++            }) else {
++                continue;
++            };
++            let var_context = context.with_origin(*reference);
++            let ty = self.types.get(type_id);
++            let pieces = if let Some(expr) = get_location(&var_die, pc) {
++                let Ok(pieces) = var_context.evaluate(expr) else {
++                    continue;
++                };
++                pieces
++            } else {
++                let Some(pieces) = global_constant(&var_die, &ty) else {
++                    continue;
++                };
++                pieces
++            };
++            let memory_size = self.memory().byte_size() as u64;
++            let size = ty.byte_size().unwrap_or(1);
++            if pieces.is_empty()
++                || !pieces.iter().all(|piece| match piece.location {
++                    gimli::Location::Address { address } => {
++                        address < memory_size
++                            && address
++                                .checked_add(size)
++                                .is_some_and(|end| end <= memory_size)
++                    }
++                    gimli::Location::Value { .. } | gimli::Location::Bytes { .. } => true,
++                    _ => false,
++                })
++            {
++                continue;
++            }
++            variables
++                .globals
++                .push(Variable::new(var_context, name, pieces, ty));
++        }
++
+         Ok(variables)
+     }
+ 
+@@ -326,6 +389,55 @@ impl Debugger {
+     }
+ }
+ 
++/// A compiler may emit a scalar constant directly instead of giving it an
++/// address. Decode it using its DWARF type rather than inventing a location.
++fn global_constant(die: &Die<'_>, ty: &Type) -> Option<Vec<gimli::Piece<R>>> {
++    use gimli::Reader;
++
++    let TypeDeclaration::Scalar {
++        byte_size,
++        encoding,
++        ..
++    } = ty.resolved()?
++    else {
++        return None;
++    };
++    let attr = die.attr_value(gimli::DW_AT_const_value)?;
++    let location = match attr {
++        gimli::AttributeValue::Block(bytes) if bytes.len() as u64 == *byte_size => {
++            gimli::Location::Bytes { value: bytes }
++        }
++        _ if matches!(*encoding, gimli::DW_ATE_signed | gimli::DW_ATE_signed_char) => {
++            gimli::Location::Value {
++                // Clang can encode a negative constant as an unsigned LEB128
++                // containing its two's-complement bit pattern.
++                value: match attr {
++                    gimli::AttributeValue::Udata(value) => gimli::Value::U64(value),
++                    _ => gimli::Value::I64(attr.sdata_value()?),
++                },
++            }
++        }
++        _ if matches!(
++            *encoding,
++            gimli::DW_ATE_unsigned
++                | gimli::DW_ATE_unsigned_char
++                | gimli::DW_ATE_boolean
++                | gimli::DW_ATE_float
++        ) =>
++        {
++            gimli::Location::Value {
++                value: gimli::Value::U64(attr.udata_value()?),
++            }
++        }
++        _ => return None,
++    };
++    Some(vec![gimli::Piece {
++        size_in_bits: None,
++        bit_offset: None,
++        location,
++    }])
++}
++
+ // ╭──────────────────────────────────────────────────────────────────────────╮
+ // │ Variable Evaluation                                                      │
+ // ╰──────────────────────────────────────────────────────────────────────────╯
+@@ -340,6 +452,8 @@ pub struct EvaluationContext {
+     offset: u32,
+     /// The cached frame base to use across evaluations.
+     fb: OnceCell<u64>,
++    /// The unit containing the expression, which may differ from the frame's.
++    origin: Option<DieReference>,
+ }
+ 
+ pub struct DerivedEvaluationContext<'a> {
+@@ -361,9 +475,16 @@ impl EvaluationContext {
+             debugger,
+             offset,
+             fb: Default::default(),
++            origin: None,
+         }
+     }
+ 
++    fn with_origin(&self, origin: DieReference) -> Self {
++        let mut context = self.clone();
++        context.origin = Some(origin);
++        context
++    }
++
+     /// Get a reference to the underlying debugger, if it exists.
+     pub fn debugger(&self) -> Option<&Debugger> {
+         self.debugger.as_deref()
+@@ -422,41 +543,54 @@ impl EvaluationContext {
+     /// Evaluates an expression and returns the resulting pieces.
+     pub fn evaluate(&self, expr: gimli::Expression<R>) -> Result<Vec<gimli::Piece<R>>> {
+         let DerivedEvaluationContext { pc, die, func } = self.derived()?;
+-        let encoding = die.ctx().unit.encoding();
++        let expr_die = match self.origin {
++            Some(reference) => {
++                reference.deref(&self.debugger().context("debugger")?.info().dwarf)?
++            }
++            None => die,
++        };
++        let encoding = expr_die.ctx().unit.encoding();
+         let mut eval = expr.evaluation(encoding);
+-
++        let mut result = eval.evaluate()?;
+         loop {
+-            let result = eval.evaluate()?;
+-            match result {
++            result = match result {
+                 gimli::EvaluationResult::Complete => return Ok(eval.result()),
+-                gimli::EvaluationResult::RequiresWasmLocal { index } => {
+-                    eval.resume_with_wasm_value(
++                gimli::EvaluationResult::RequiresWasmLocal { index } => eval
++                    .resume_with_wasm_value(
+                         self.wasm_value(func, &WasmLocation::Local(index as usize))?,
+-                    )?;
+-                }
+-                gimli::EvaluationResult::RequiresWasmStack { index } => {
+-                    eval.resume_with_wasm_value(
++                    )?,
++                gimli::EvaluationResult::RequiresWasmStack { index } => eval
++                    .resume_with_wasm_value(
+                         self.wasm_value(func, &WasmLocation::Operand(index as usize))?,
+-                    )?;
++                    )?,
++                gimli::EvaluationResult::RequiresWasmGlobal { index } => eval
++                    .resume_with_wasm_value(
++                        self.wasm_value(func, &WasmLocation::Global(index as usize))?,
++                    )?,
++                // The linked WASM already contains linear-memory addresses;
++                // instrumentation does not relocate its data segments.
++                gimli::EvaluationResult::RequiresRelocatedAddress(address) => {
++                    eval.resume_with_relocated_address(address)?
+                 }
+-                gimli::EvaluationResult::RequiresWasmGlobal { index } => {
+-                    eval.resume_with_wasm_value(
+-                        self.wasm_value(func, &WasmLocation::Operand(index as usize))?,
+-                    )?;
++                gimli::EvaluationResult::RequiresIndexedAddress { index, .. } => {
++                    eval.resume_with_indexed_address(expr_die.ctx().unit_ref().address(index)?)?
+                 }
+                 gimli::EvaluationResult::RequiresFrameBase => {
+                     if let Some(fb) = self.fb.get() {
+-                        eval.resume_with_frame_base(*fb)?;
++                        eval.resume_with_frame_base(*fb)?
+                     } else {
+-                        let expr = die
++                        let frame_die = self.derived()?.die;
++                        let expr = frame_die
+                             .expression(gimli::DW_AT_frame_base, pc)
+                             .context("Required DW_AT_frame_base missing on function")?;
+-                        let fb = self.evaluate_unsigned(expr)?;
+-                        eval.resume_with_frame_base(*self.fb.get_or_init(|| fb))?;
++                        let mut frame_context = self.clone();
++                        frame_context.origin = None;
++                        let fb = frame_context.evaluate_unsigned(expr)?;
++                        eval.resume_with_frame_base(*self.fb.get_or_init(|| fb))?
+                     }
+                 }
+                 _ => anyhow::bail!("Could not execute evaluation step {result:?}"),
+-            }
++            };
+         }
+     }
+ 
+diff --git a/src/debug/formatters/default/array.rs b/src/debug/formatters/default/array.rs
+index 839b90b..c2bf52c 100644
+--- a/src/debug/formatters/default/array.rs
++++ b/src/debug/formatters/default/array.rs
+@@ -35,14 +35,18 @@ impl VariableFormatter for ArrayFormatter {
+         let start = range.start.min(count);
+         let end = range.end.min(count);
+ 
+-        Ok((start..end)
++        (start..end)
+             .map(|i| {
+-                value
+-                    .child_at_offset((i * elem_size) as isize)
++                let offset = i
++                    .checked_mul(elem_size)
++                    .and_then(|n| isize::try_from(n).ok())
++                    .context("array offset overflow")?;
++                Ok(value
++                    .child_at_offset(offset)
+                     .with_name(&format!("[{i}]"))
+-                    .with_type(&elem_ty)
++                    .with_type(&elem_ty))
+             })
+-            .collect())
++            .collect()
+     }
+ 
+     fn named_children(&self, _value: &Variable, _range: Range<usize>) -> Result<Vec<Variable>> {
+@@ -61,15 +65,20 @@ fn element_count(value: &Variable) -> Result<usize> {
+     };
+     let count = match upper_bound {
+         ArrayUpperBound::Count(b) => eval_bound(b, value)?,
+-        ArrayUpperBound::Index(b) => eval_bound(b, value)? - eval_bound(lower_bound, value)? + 1,
++        ArrayUpperBound::Index(b) => eval_bound(b, value)?
++            .checked_sub(eval_bound(lower_bound, value)?)
++            .and_then(|n| n.checked_add(1))
++            .context("array bound overflow")?,
++        ArrayUpperBound::Unknown => bail!("unknown array bound"),
+     };
+-    Ok(count.max(0) as usize)
++    usize::try_from(count).context("invalid array bound")
+ }
+ 
+ fn eval_bound(bound: &ArrayBound, value: &Variable) -> Result<i64> {
+     match bound {
+         ArrayBound::Constant(c) => Ok(*c),
+         ArrayBound::Expr(e) => value.context().evaluate_signed(e.clone()),
++        ArrayBound::Unknown => bail!("unknown array bound"),
+         ArrayBound::Ref(r) => {
+             let ctx = value.context();
+             let DerivedEvaluationContext { pc, .. } = ctx.derived()?;
+diff --git a/src/debug/instrument/encoder.rs b/src/debug/instrument/encoder.rs
+index 144df26..f0f38b8 100644
+--- a/src/debug/instrument/encoder.rs
++++ b/src/debug/instrument/encoder.rs
+@@ -2,7 +2,10 @@ use std::collections::HashMap;
+ 
+ use super::{Error, FnInstrumenter, InstrResult};
+ use crate::{
+-    debug::dwarf::{Dwarf, Location, Visit},
++    debug::{
++        dwarf::{DieReference, Dwarf, Location, Visit},
++        get_globals,
++    },
+     types::{BP_PREFIX_BYTES, CodeOffset, DebugFunction, DebugInfo, MemoryDescriptor},
+     util::supports_wasm_multi_memory,
+ };
+@@ -105,6 +108,7 @@ pub struct Instrumenter {
+     pub info: InstrumenterInfo,
+     pub functions: Vec<DebugFunction>,
+     pub locations: Vec<Location>,
++    pub globals: Vec<Vec<DieReference>>,
+ 
+     pub validator: wasmparser::Validator,
+     pub bkpt_type_index: u32,
+@@ -133,6 +137,15 @@ impl Instrumenter {
+ 
+         Ok(Self {
+             functions: parse_debug_functions(&info.dwarf),
++            globals: info
++                .dwarf
++                .units()
++                .iter()
++                .map(|unit| {
++                    unit.root(&info.dwarf)
++                        .map_or_else(Vec::new, |root| get_globals(&root))
++                })
++                .collect(),
+             locations: Vec::new(),
+             info,
+             validator: wasmparser::Validator::new(),
+diff --git a/src/debug/instrument/function.rs b/src/debug/instrument/function.rs
+index 0087cae..34d9018 100644
+--- a/src/debug/instrument/function.rs
++++ b/src/debug/instrument/function.rs
+@@ -173,6 +173,31 @@ impl<'a, 'b> FnInstrumenter<'a, 'b> {
+             }
+         }
+ 
++        // Some global addresses use a WASM global (for example, a data base).
++        // Capture it in every frame where those globals can be inspected.
++        for reference in &self.instr.globals[fun.ctx().unit.index()] {
++            let Ok(var) = reference.deref(&self.instr.info.dwarf) else {
++                continue;
++            };
++            let Some(expr) = get_location(&var, pc) else {
++                continue;
++            };
++            for op in expr.operations(var.ctx().unit.encoding()) {
++                if let Ok(gimli::Operation::WasmGlobal { index }) = op {
++                    if let Some(types) = self.instr.validator.types(0) {
++                        if index < types.global_count()
++                            && !matches!(
++                                types.global_at(index).content_type,
++                                wasmparser::ValType::Ref(_)
++                            )
++                        {
++                            locs.globals.insert(index as usize);
++                        }
++                    }
++                }
++            }
++        }
++
+         Ok(locs)
+     }
+ 
+diff --git a/src/debug/types.rs b/src/debug/types.rs
+index e30481e..01fea98 100644
+--- a/src/debug/types.rs
++++ b/src/debug/types.rs
+@@ -65,6 +65,7 @@ pub enum ArrayBound {
+     Constant(i64),
+     Expr(gimli::Expression<R>),
+     Ref(DieReference),
++    Unknown,
+ }
+ 
+ #[derive(Clone, Debug)]
+@@ -73,6 +74,7 @@ pub enum ArrayUpperBound {
+     Index(ArrayBound),
+     /// Represents the number of total elements held by the array
+     Count(ArrayBound),
++    Unknown,
+ }
+ 
+ #[derive(Clone, Debug)]
+@@ -252,11 +254,11 @@ impl Type {
+                         (
+                             ArrayBound::Constant(lo),
+                             ArrayUpperBound::Index(ArrayBound::Constant(hi)),
+-                        ) => Some(*hi - *lo + 1),
++                        ) => hi.checked_sub(*lo).and_then(|n| n.checked_add(1)),
+                         _ => None,
+                     }?;
+ 
+-                    Some(elem_size * count as u64)
++                    elem_size.checked_mul(u64::try_from(count).ok()?)
+                 })
+             }
+             // Pointers/references are wasm32 — 4 bytes
+@@ -266,6 +268,33 @@ impl Type {
+         }
+     }
+ 
++    /// Total scalar elements in an array, when every dimension is known.
++    pub fn array_length(&self) -> Option<u64> {
++        let TypeDeclaration::Array {
++            element_type,
++            lower_bound,
++            upper_bound,
++            ..
++        } = self.resolved()?
++        else {
++            return None;
++        };
++        let count = match (lower_bound, upper_bound) {
++            (_, ArrayUpperBound::Count(ArrayBound::Constant(count))) => *count,
++            (ArrayBound::Constant(lo), ArrayUpperBound::Index(ArrayBound::Constant(hi))) => {
++                hi.checked_sub(*lo)?.checked_add(1)?
++            }
++            _ => return None,
++        };
++        let child = self.child(*element_type);
++        let inner_count = if matches!(child.resolved(), Some(TypeDeclaration::Array { .. })) {
++            child.array_length()?
++        } else {
++            1
++        };
++        u64::try_from(count).ok()?.checked_mul(inner_count)
++    }
++
+     pub fn die(&self) -> Result<Die<'_>> {
+         let graph = self.graph().context("Could not access type graph")?;
+         let debugger = graph
+@@ -333,14 +362,15 @@ fn decl_name(id: TypeId, graph: &TypeGraph) -> String {
+             let count = match (lower_bound, upper_bound) {
+                 (_, ArrayUpperBound::Count(ArrayBound::Constant(c))) => Some(*c),
+                 (ArrayBound::Constant(lo), ArrayUpperBound::Index(ArrayBound::Constant(hi))) => {
+-                    Some(*hi - *lo + 1)
++                    hi.checked_sub(*lo).and_then(|n| n.checked_add(1))
+                 }
+                 _ => None,
+             };
+-            match count {
+-                Some(c) => format!("{elem}[{c}]"),
+-                None => format!("{elem}[]"),
+-            }
++            let count = count
++                .filter(|n| *n >= 0)
++                .map_or_else(|| "?".to_string(), |n| n.to_string());
++            let split = elem.find('[').unwrap_or(elem.len());
++            format!("{}[{count}]{}", &elem[..split], &elem[split..])
+         }
+         TypeDeclaration::ModifiedType {
+             name,
+@@ -369,7 +399,9 @@ impl TypeGraph {
+             for unit in dwarf.units() {
+                 if let Some(root) = unit.root(dwarf) {
+                     root.traverse(|die| {
+-                        if let Some(decl) = parse_type_declaration(&die) {
++                        if die.tag() == gimli::DW_TAG_array_type {
++                            types.extend(parse_array_declarations(&die));
++                        } else if let Some(decl) = parse_type_declaration(&die) {
+                             types.insert(die.die_ref(), decl);
+                         }
+                         Visit::Continue
+@@ -455,23 +487,6 @@ fn parse_type_declaration(die: &Die<'_>) -> Option<TypeDeclaration> {
+             modifier: Modifier::Restrict,
+             inner: die.type_ref()?,
+         }),
+-        gimli::DW_TAG_array_type => {
+-            let element_type = die.type_ref()?;
+-            let (lower_bound, upper_bound) = die
+-                .find_children(|c| {
+-                    (c.tag() == gimli::DW_TAG_subrange_type).then(|| parse_subrange(&c))
+-                })
+-                .unwrap_or((
+-                    ArrayBound::Constant(0),
+-                    ArrayUpperBound::Index(ArrayBound::Constant(0)),
+-                ));
+-            Some(TypeDeclaration::Array {
+-                byte_size: u64_attr(die, gimli::DW_AT_byte_size),
+-                element_type,
+-                lower_bound,
+-                upper_bound,
+-            })
+-        }
+         gimli::DW_TAG_structure_type | gimli::DW_TAG_union_type | gimli::DW_TAG_class_type => {
+             Some(TypeDeclaration::Structure {
+                 name: die.name(),
+@@ -483,6 +498,50 @@ fn parse_type_declaration(die: &Die<'_>) -> Option<TypeDeclaration> {
+     }
+ }
+ 
++// Clang describes multidimensional arrays as one DIE with multiple subranges.
++// Give each subsequent dimension a synthetic array type keyed by its DIE.
++fn parse_array_declarations(die: &Die<'_>) -> Vec<(TypeId, TypeDeclaration)> {
++    let Some(element) = die.type_ref() else {
++        return Vec::new();
++    };
++    let bounds = die.collect_children(|child| {
++        (child.tag() == gimli::DW_TAG_subrange_type)
++            .then(|| (child.die_ref(), parse_subrange(&child)))
++    });
++    if bounds.is_empty() {
++        return vec![(
++            die.die_ref(),
++            TypeDeclaration::Array {
++                byte_size: u64_attr(die, gimli::DW_AT_byte_size),
++                element_type: element,
++                lower_bound: ArrayBound::Constant(0),
++                upper_bound: ArrayUpperBound::Unknown,
++            },
++        )];
++    }
++    bounds
++        .iter()
++        .enumerate()
++        .map(|(index, (id, (lower_bound, upper_bound)))| {
++            let current = if index == 0 { die.die_ref() } else { *id };
++            let next = bounds.get(index + 1).map_or(element, |(id, _)| *id);
++            (
++                current,
++                TypeDeclaration::Array {
++                    byte_size: if index == 0 {
++                        u64_attr(die, gimli::DW_AT_byte_size)
++                    } else {
++                        None
++                    },
++                    element_type: next,
++                    lower_bound: lower_bound.clone(),
++                    upper_bound: upper_bound.clone(),
++                },
++            )
++        })
++        .collect()
++}
++
+ fn parse_member(die: Die<'_>) -> Option<StructureMember> {
+     if die.tag() != gimli::DW_TAG_member {
+         return None;
+@@ -504,11 +563,15 @@ fn parse_member(die: Die<'_>) -> Option<StructureMember> {
+ }
+ 
+ fn parse_subrange(die: &Die<'_>) -> (ArrayBound, ArrayUpperBound) {
+-    let lower = array_bound(die, gimli::DW_AT_lower_bound).unwrap_or(ArrayBound::Constant(0));
++    let lower = if die.has_attr(gimli::DW_AT_lower_bound) {
++        array_bound(die, gimli::DW_AT_lower_bound).unwrap_or(ArrayBound::Unknown)
++    } else {
++        ArrayBound::Constant(0)
++    };
+     let upper = array_bound(die, gimli::DW_AT_upper_bound)
+         .map(ArrayUpperBound::Index)
+         .or_else(|| array_bound(die, gimli::DW_AT_count).map(ArrayUpperBound::Count))
+-        .unwrap_or(ArrayUpperBound::Index(ArrayBound::Constant(0)));
++        .unwrap_or(ArrayUpperBound::Unknown);
+     (lower, upper)
+ }
+ 
+@@ -520,14 +583,34 @@ fn array_bound(die: &Die<'_>, attr: gimli::DwAt) -> Option<ArrayBound> {
+     let value = die.attr_value(attr)?;
+     match value {
+         gimli::AttributeValue::Exprloc(e) => Some(ArrayBound::Expr(e)),
++        gimli::AttributeValue::Sdata(value) => Some(ArrayBound::Constant(value)),
+         _ => {
+-            if let Some(signed) = value.sdata_value() {
+-                Some(ArrayBound::Constant(signed))
+-            } else if let Some(unsigned) = value.udata_value() {
+-                i64::try_from(unsigned).ok().map(ArrayBound::Constant)
++            let unsigned = value.udata_value().and_then(|n| i64::try_from(n).ok());
++            let signed = value.sdata_value();
++            let is_signed = die
++                .type_ref()
++                .and_then(|id| id.deref(die.ctx().dwarf).ok())
++                .and_then(|ty| ty.attr_value(gimli::DW_AT_encoding))
++                .and_then(|encoding| match encoding {
++                    gimli::AttributeValue::Encoding(
++                        gimli::DW_ATE_signed | gimli::DW_ATE_signed_char,
++                    ) => Some(true),
++                    gimli::AttributeValue::Encoding(
++                        gimli::DW_ATE_unsigned | gimli::DW_ATE_unsigned_char,
++                    ) => Some(false),
++                    _ => None,
++                });
++            let number = if attr == gimli::DW_AT_count {
++                unsigned
+             } else {
+-                None
+-            }
++                match is_signed {
++                    Some(true) => signed,
++                    Some(false) => unsigned,
++                    None if signed == unsigned => signed,
++                    None => None,
++                }
++            };
++            number.map(ArrayBound::Constant)
+         }
+     }
+ }
+diff --git a/src/debug/variables.rs b/src/debug/variables.rs
+index 9ed4bb8..b7cc87b 100644
+--- a/src/debug/variables.rs
++++ b/src/debug/variables.rs
+@@ -3,7 +3,7 @@ use std::ops::Range;
+ use crate::{
+     debug::{
+         Debugger, EvaluationContext, MemberLocation, ReferenceKind, Type, TypeDeclaration,
+-        dwarf::{Die, R, Visit},
++        dwarf::{Die, DieReference, R, Visit},
+         formatters::ChildCounts,
+     },
+     types::{CodeOffset, MemoryOffset},
+@@ -66,6 +66,27 @@ pub fn get_variables<'a>(die: &Die<'a>, pc: CodeOffset) -> Vec<Die<'a>> {
+     result
+ }
+ 
++/// Variables defined at compilation-unit or namespace scope. Do not descend
++/// into functions or types: their variables are not global variables.
++pub fn get_globals(root: &Die<'_>) -> Vec<DieReference> {
++    let mut result = Vec::new();
++    root.traverse(|die| match die.tag() {
++        gimli::DW_TAG_compile_unit | gimli::DW_TAG_namespace => Visit::Continue,
++        gimli::DW_TAG_variable => {
++            if !die.has_flag(gimli::DW_AT_declaration)
++                && !die.has_flag(gimli::DW_AT_artificial)
++                && die.qualified_name().is_some_and(|name| !name.is_empty())
++                && (die.has_attr(gimli::DW_AT_location) || die.has_attr(gimli::DW_AT_const_value))
++            {
++                result.push(die.die_ref());
++            }
++            Visit::SkipChildren
++        }
++        _ => Visit::SkipChildren,
++    });
++    result
++}
++
+ /// Gets the location expression for a variable at the given PC
+ pub fn get_location(die: &Die<'_>, pc: CodeOffset) -> Option<Expression<R>> {
+     die.expression(gimli::DW_AT_location, pc)
+diff --git a/src/ts/index.ts b/src/ts/index.ts
+index 3f0c374..52d361f 100644
+--- a/src/ts/index.ts
++++ b/src/ts/index.ts
+@@ -36,6 +36,8 @@ export class Engine {
+   public readonly stderr = new Stdout(2);
+   public readonly stdin = new Stdin();
+   public readonly debugger: Debugger;
++  /** Shared debuggee memory used by Code App's value formatters while paused. */
++  public debuggeeMemory?: WebAssembly.Memory;
+ 
+   /** A function which, when called, rejects the ongoing execution */
+   private rejector?: () => void;
+@@ -94,6 +96,13 @@ export class Engine {
+     const totalStart = performance.now();
+     const worker = new RustWorker();
+ 
++    worker.addEventListener('message', (event: MessageEvent<WorkerOut>) => {
++      if (event.data.type === 'debug') {
++        const info = event.data.info as unknown as { memory: { memory: WebAssembly.Memory } };
++        this.debuggeeMemory = info.memory.memory;
++      }
++    });
++
+     /* Set up handling for stdout/stderr */
+     this.stdout[Internals].attach(worker);
+     this.stderr[Internals].attach(worker);
+@@ -147,6 +156,7 @@ export class Engine {
+       if (err === 'stopped') return { type: 'stopped' };
+       return errorResult(err);
+     } finally {
++      this.debuggeeMemory = undefined;
+       this.rejector = undefined;
+       this.stdout[Internals].detach(worker);
+       this.stderr[Internals].detach(worker);
+diff --git a/src/ts/worker.ts b/src/ts/worker.ts
+index 1cec1dc..64333f5 100644
+--- a/src/ts/worker.ts
++++ b/src/ts/worker.ts
+@@ -2,6 +2,17 @@ import init, * as wasm from '../../pkg/engine.js';
+ import wasmBinary from '../../pkg/engine_bg.wasm';
+ import { errorResult } from './util';
+ 
++// Code App compiles with its native Clang and serves the adapter locally.
++const nativeFetch = self.fetch.bind(self);
++self.fetch = (input, options) => {
++  const url = input instanceof Request ? input.url : String(input);
++  const prefix = 'https://fabioibanez.github.io/website/';
++  const file = url.slice(prefix.length);
++  const target = file === 'llvm.core.wasm' ? 'adapter.wasm'
++    : file === 'llvm-resources.tar.gz' ? 'empty.tar.gz' : file;
++  return nativeFetch(url.startsWith(prefix) ? `http://localhost:20233/debugger/${target}` : input, options);
++};
++
+ try {
+   await init({ module_or_path: wasmBinary });
+   wasm.main();

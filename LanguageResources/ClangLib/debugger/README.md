@@ -1,7 +1,9 @@
 # C/C++ debugger runtime
 
-`engine.js` and `engine_bg.wasm` are from debugger-sh 0.3.15 (MIT; see
-`LICENSE.debugger-sh`). The bundle is configured to load its assets from the
+`engine.js` and `engine_bg.wasm` are based on debugger-sh 0.3.15 (MIT; see
+`LICENSE.debugger-sh`), with global-variable and array-bound fixes. The source
+patch, rebuild instructions and regression tests are in
+`Tests/CPPDebugger/staged-globals/`. The bundle is configured to load its assets from the
 app's local WASM server. A small change to `engine.js` exposes the paused
 program's shared memory so `debugger.js` can format strings and show container
 sizes using the wasm32 libc++ layout shipped with Code App. Supported containers

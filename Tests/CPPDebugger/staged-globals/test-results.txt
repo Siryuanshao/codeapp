@@ -1,0 +1,35 @@
+iPad Air (M4), Code Test, app Clang 14, 2026-10-29, candidate engine SHA-256 75a97e985afbb6d6e1a2e94089073fe6cd3d6f8aedadbae86934d9db149c0144:
+GLOBALS_PROBE Globals count = 5 (int)
+GLOBALS_PROBE Globals MAXN = 1000 (const int)
+GLOBALS_PROBE Globals NEG = -150 (const int)
+GLOBALS_PROBE Globals BIG = 4000000000 (const unsigned int)
+GLOBALS_PROBE Globals FLAG = true (const bool)
+GLOBALS_PROBE Locals count = 17 (int)
+GLOBALS_PROBE Locals local = 42 (int)
+GLOBALS_PROBE Globals a = size = 1000 (int[1000])
+GLOBALS_PROBE Globals medium = size = 150 (int[150])
+GLOBALS_PROBE Globals aliasArray = size = 150 (IntArray)
+GLOBALS_PROBE Globals grid = size = 300 (int[2][150])
+GLOBALS_PROBE Globals ns::counter = 11 (int)
+GLOBALS_PROBE Globals ready = true (bool)
+GLOBALS_PROBE Globals ratio = 1.5 (double)
+GLOBALS_PROBE Globals negative = -5000000000 (long long)
+GLOBALS_PROBE Locals local = 43 (int)
+GLOBALS_PROBE Globals count = 5 (int)
+GLOBALS_PROBE Globals count = 9 (int)
+GLOBALS_PROBE C++ PASS
+GLOBALS_PROBE Globals count = 5 (int)
+GLOBALS_PROBE Locals local = 42 (int)
+GLOBALS_PROBE Globals a = size = 1000 (int[1000])
+GLOBALS_PROBE C PASS
+GLOBALS_PROBE ALL PASS
+
+The probe printed ALL PASS before devicectl reported termination by signal 9.
+
+Integration regression on the same iPad and runtime, 2026-10-29:
+Global scalar = 5; global and local int[150] = size 150; int[1000] = size 1000.
+CONTAINER_PROBE PASS: local sizes, nested member, arrays and string
+CONTAINER_PROBE PASS: size refresh on step
+CONTAINER_PROBE PASS: priority queue refresh on step
+CONTAINER_PROBE PASS: reference parameter
+CONTAINER_PROBE ALL PASS

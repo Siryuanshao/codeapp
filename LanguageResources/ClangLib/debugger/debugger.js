@@ -166,6 +166,13 @@ function libcppContainerSummary(variable, memory) {
 
 function arraySummary(variable) {
   const type = variable.type || "";
+  if (Object.prototype.hasOwnProperty.call(variable, "codeappArrayLength")) {
+    const count = variable.codeappArrayLength;
+    if (!Number.isSafeInteger(count) || count < 0) {
+      return { type, value: "size = ?" };
+    }
+    return count > 100 ? { type, value: `size = ${count}` } : null;
+  }
   if (!/\[\s*-?\d+\s*\]\s*$/.test(type) || !String(variable.value || "").startsWith("@")) return null;
   const dimensions = [...type.matchAll(/\[\s*(-?\d+)\s*\]/g)].map(match => Number(match[1]));
   if (dimensions.some(size => size < 0)) {

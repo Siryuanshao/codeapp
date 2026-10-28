@@ -79,4 +79,7 @@ assert.equal(context.array({ type: "int[100]", value: "@0x80" }), null);
 assert.equal(context.array({ type: "int[101]", value: "@0x80" }).value, "size = 101");
 assert.equal(context.array({ type: "int[10][20]", value: "@0x80" }).value, "size = 200");
 assert.equal(context.array({ type: "int[-106]", value: "@0x80" }).type, "int[?]");
+assert.equal(context.array({ type: "IntArray", value: "@0x80", codeappArrayLength: 150 }).value, "size = 150");
+assert.equal(context.array({ type: "int[?]", value: "@0x80", codeappArrayLength: null }).value, "size = ?");
+assert.equal(context.array({ type: "int[2][3]", value: "@0x80", codeappArrayLength: 6 }), null);
 console.log("libc++ container size tests passed");
