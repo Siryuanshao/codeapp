@@ -16,6 +16,7 @@ import { Engine } from "./engine.js";
 export function createDebugger() {
   let current = null;
   let sequence = 0;
+  const childrenPerPage = 100;
 
   const emit = (event, data = {}) => {
     window.webkit.messageHandlers.cppDebugger.postMessage({ event, ...data });
@@ -60,8 +61,75 @@ export function createDebugger() {
     emit("running", { breakpoints: points?.body?.breakpoints || [] });
   }
 
+  function variableNode(session, variable, path) {
+    const variablePath = [...path, variable.name];
+    const id = JSON.stringify(variablePath);
+    const node = {
+      id,
+      path: variablePath,
+      name: variable.name,
+      value: variable.value,
+      type: variable.type || "",
+      reference: variable.variablesReference || 0,
+      childCount: (variable.namedVariables || 0) + (variable.indexedVariables || 0),
+      expanded: session.expanded.has(id),
+      children: [],
+      hasMore: false,
+      error: "",
+    };
+    session.nodes.set(id, node);
+    if (node.expanded && node.reference) {
+      readChildren(session, node, session.expanded.get(id));
+    }
+    return node;
+  }
+
+  function readChildren(session, node, count) {
+    try {
+      const response = request(session, "variables", {
+        variablesReference: node.reference, start: 0, count,
+      });
+      if (!response?.success) throw new Error(response?.message || "Unable to read variable");
+      node.error = "";
+      node.children = (response.body?.variables || []).map(variable =>
+        variableNode(session, variable, node.path));
+      node.hasMore = node.children.length < node.childCount;
+    } catch (error) {
+      node.error = String(error);
+      node.children = [];
+      node.hasMore = false;
+    }
+  }
+
+  function toggleVariable(id) {
+    const session = current;
+    const node = session?.nodes.get(id);
+    if (!session?.paused || !node?.reference) return;
+    node.expanded = !node.expanded;
+    if (node.expanded) {
+      const count = Math.max(childrenPerPage, node.children.length);
+      session.expanded.set(id, count);
+      readChildren(session, node, count);
+    } else {
+      session.expanded.delete(id);
+    }
+    emit("variables", { variables: session.variables });
+  }
+
+  function loadMoreVariables(id) {
+    const session = current;
+    const node = session?.nodes.get(id);
+    if (!session?.paused || !node?.expanded || !node.hasMore) return;
+    const count = node.children.length + childrenPerPage;
+    session.expanded.set(id, count);
+    readChildren(session, node, count);
+    emit("variables", { variables: session.variables });
+  }
+
   function onStopped(session, event) {
     if (current !== session) return;
+    session.paused = true;
+    session.nodes = new Map();
     const stack = request(session, "stackTrace", { threadId: 1 });
     const frame = stack?.body?.stackFrames?.[0];
     if (!frame) {
@@ -71,8 +139,10 @@ export function createDebugger() {
     const scopes = request(session, "scopes", { frameId: frame.id });
     const variables = (scopes?.body?.scopes || []).flatMap(scope => {
       const result = request(session, "variables", { variablesReference: scope.variablesReference });
-      return result?.body?.variables || [];
+      return (result?.body?.variables || []).map(variable =>
+        variableNode(session, variable, [frame.name, scope.name]));
     });
+    session.variables = variables;
     emit("paused", {
       reason: event.body?.reason,
       line: frame.line,
@@ -82,7 +152,10 @@ export function createDebugger() {
   }
 
   async function start({ binary, sourcePath, breakpoints }) {
-    const session = { sourcePath, breakpoints, configured: false, stopped: false };
+    const session = {
+      sourcePath, breakpoints, configured: false, stopped: false, paused: false,
+      expanded: new Map(), nodes: new Map(), variables: [],
+    };
     current = session;
     try {
       session.engine = await Engine.create("c");
@@ -133,7 +206,10 @@ export function createDebugger() {
   function command(name) {
     if (!current?.configured) return;
     const response = request(current, name, { threadId: 1 });
-    if (response?.success) emit("running");
+    if (response?.success) {
+      current.paused = false;
+      emit("running");
+    }
   }
 
   function setBreakpoints(lines) {
@@ -146,5 +222,5 @@ export function createDebugger() {
     if (current?.engine) void current.engine.stdin.write(text);
   }
 
-  return { start, stop, command, setBreakpoints, input };
+  return { start, stop, command, setBreakpoints, input, toggleVariable, loadMoreVariables };
 }

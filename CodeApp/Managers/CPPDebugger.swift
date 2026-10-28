@@ -4,9 +4,30 @@ import WebKit
 import ios_system
 
 struct CPPDebugVariable: Identifiable {
-    let id = UUID()
+    let id: String
     let name: String
     let value: String
+    let type: String
+    let reference: Int
+    let expanded: Bool
+    let children: [CPPDebugVariable]
+    let hasMore: Bool
+    let error: String
+
+    init?(_ data: [String: Any]) {
+        guard let id = data["id"] as? String, let name = data["name"] as? String,
+            let value = data["value"] as? String
+        else { return nil }
+        self.id = id
+        self.name = name
+        self.value = value
+        type = data["type"] as? String ?? ""
+        reference = data["reference"] as? Int ?? 0
+        expanded = data["expanded"] as? Bool ?? false
+        children = (data["children"] as? [[String: Any]] ?? []).compactMap(CPPDebugVariable.init)
+        hasMore = data["hasMore"] as? Bool ?? false
+        error = data["error"] as? String ?? ""
+    }
 }
 
 final class CPPDebugger: NSObject, ObservableObject, WKNavigationDelegate, WKScriptMessageHandler {
@@ -138,6 +159,20 @@ final class CPPDebugger: NSObject, ObservableObject, WKNavigationDelegate, WKScr
             in: .page)
     }
 
+    func toggleVariable(_ id: String) {
+        guard state == .paused else { return }
+        webView.callAsyncJavaScript(
+            "window.codeappDebugger.toggleVariable(id); return true;", arguments: ["id": id], in: nil,
+            in: .page)
+    }
+
+    func loadMoreVariables(_ id: String) {
+        guard state == .paused else { return }
+        webView.callAsyncJavaScript(
+            "window.codeappDebugger.loadMoreVariables(id); return true;", arguments: ["id": id], in: nil,
+            in: .page)
+    }
+
     func breakpointsChanged(uri: String, lines: [Int]) {
         guard let sourceURL, URL(string: uri)?.path == sourceURL.path, state.isActive else { return }
         currentBreakpoints = lines
@@ -184,17 +219,15 @@ final class CPPDebugger: NSObject, ObservableObject, WKNavigationDelegate, WKScr
             currentFile = (body["sourcePath"] as? String).map {
                 URL(fileURLWithPath: $0).lastPathComponent
             }
-            variables = (body["variables"] as? [[String: Any]] ?? []).compactMap {
-                guard let name = $0["name"] as? String, let value = $0["value"] as? String else {
-                    return nil
-                }
-                return CPPDebugVariable(name: name, value: value)
-            }
+            variables = (body["variables"] as? [[String: Any]] ?? []).compactMap(CPPDebugVariable.init)
             if let sourceURL, let path = body["sourcePath"] as? String, path == sourceURL.path,
                 line > 0, let monaco = app?.monacoInstance as? MonacoImplementation
             {
                 Task { await monaco.showDebugLine(url: sourceURL, line: line) }
             }
+        case "variables":
+            guard state == .paused else { return }
+            variables = (body["variables"] as? [[String: Any]] ?? []).compactMap(CPPDebugVariable.init)
         case "output":
             output += body["text"] as? String ?? ""
         case "exited":
@@ -411,10 +444,7 @@ struct CPPDebugPanel: View {
                     Text("debug.variables").bold()
                     ScrollView {
                         VStack(alignment: .leading, spacing: 3) {
-                            ForEach(debugger.variables) { variable in
-                                Text("\(variable.name) = \(variable.value)")
-                                    .font(.system(.caption, design: .monospaced))
-                            }
+                            CPPDebugVariableTree(debugger: debugger, variables: debugger.variables)
                         }.frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }.frame(minWidth: 120, maxWidth: .infinity, alignment: .leading)
@@ -444,5 +474,69 @@ struct CPPDebugPanel: View {
     private func sendInput() {
         debugger.sendInput(input)
         input = ""
+    }
+}
+
+private struct CPPDebugVariableTree: View {
+    @ObservedObject var debugger: CPPDebugger
+    let variables: [CPPDebugVariable]
+    var depth = 0
+
+    var body: some View {
+        ForEach(variables) { variable in
+            VStack(alignment: .leading, spacing: 0) {
+                if variable.reference != 0 {
+                    Button {
+                        debugger.toggleVariable(variable.id)
+                    } label: {
+                        row(variable)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    row(variable)
+                }
+
+                if variable.expanded {
+                    CPPDebugVariableTree(
+                        debugger: debugger, variables: variable.children, depth: depth + 1)
+                    if !variable.error.isEmpty {
+                        Text("debug.variable_unavailable")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .help(variable.error)
+                            .padding(.leading, CGFloat(depth + 1) * 14 + 24)
+                    }
+                    if variable.hasMore {
+                        Button("debug.load_more") {
+                            debugger.loadMoreVariables(variable.id)
+                        }
+                        .font(.caption)
+                        .padding(.leading, CGFloat(depth + 1) * 14 + 24)
+                    }
+                }
+            }
+        }
+    }
+
+    private func row(_ variable: CPPDebugVariable) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: variable.expanded ? "chevron.down" : "chevron.right")
+                .font(.system(size: 10, weight: .semibold))
+                .opacity(variable.reference == 0 ? 0 : 1)
+                .frame(width: 24, height: 28)
+            Text("\(variable.name) = \(variable.value)")
+                .font(.system(.caption, design: .monospaced))
+                .lineLimit(1)
+            if !variable.type.isEmpty {
+                Text(variable.type)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.leading, CGFloat(depth) * 14)
+        .contentShape(Rectangle())
     }
 }

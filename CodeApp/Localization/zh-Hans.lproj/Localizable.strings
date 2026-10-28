@@ -679,6 +679,8 @@
 "debug.restart" = "重新开始调试";
 "debug.stop" = "停止调试";
 "debug.variables" = "变量";
+"debug.load_more" = "加载更多";
+"debug.variable_unavailable" = "无法读取成员";
 "debug.output" = "输出";
 "debug.input" = "程序输入";
 "debug.send" = "发送";
