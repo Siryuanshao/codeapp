@@ -19,6 +19,10 @@ class TestEngine {
 
   constructor() {
     this.step = 0;
+    this.debuggeeMemory = { buffer: new ArrayBuffer(1024) };
+    this.memory = new DataView(this.debuggeeMemory.buffer);
+    this.memory.setUint32(128, 400, true);
+    this.memory.setUint32(132, 412, true);
     this.stdout = { on() {} };
     this.stderr = { on() {} };
     this.stdin = { write() {} };
@@ -53,14 +57,20 @@ class TestEngine {
         const variables = {
           1: [
             { name: "person", value: "@10", type: "Person", variablesReference: 2, namedVariables: 2 },
-            { name: "numbers", value: "@20", type: "int[120]", variablesReference: 4, indexedVariables: 120 },
+            { name: "numbers", value: "@20", type: "int[3]", variablesReference: 4, indexedVariables: 3 },
+            { name: "large", value: "@40", type: "int[120]", variablesReference: 5, indexedVariables: 120 },
+            { name: "unknown", value: "@60", type: "int[-106]", variablesReference: 0 },
+            { name: "items", value: "@0x80", type: "std::vector<int>", memoryReference: "0x80", variablesReference: 6, indexedVariables: 3 },
           ],
           2: [
             { name: "age", value: String(25 + this.step), type: "int", variablesReference: 0 },
             { name: "position", value: "@14", type: "Point", variablesReference: 3, namedVariables: 1 },
           ],
           3: [{ name: "x", value: "1", type: "int", variablesReference: 0 }],
-          4: Array.from({ length: 120 }, (_, i) => ({
+          4: Array.from({ length: 3 }, (_, i) => ({
+            name: `[${i}]`, value: String(i), type: "int", variablesReference: 0,
+          })),
+          5: Array.from({ length: 120 }, (_, i) => ({
             name: `[${i}]`, value: String(i), type: "int", variablesReference: 0,
           })),
         }[args.variablesReference];
@@ -69,6 +79,7 @@ class TestEngine {
       }
       case "next":
         this.step++;
+        this.memory.setUint32(132, 416, true);
         setTimeout(() => this.emit("stopped"), 0);
         return response({});
       default:
@@ -121,24 +132,24 @@ async function main() {
 
   variables = await toggle(find(variables, "numbers"));
   let numbers = find(variables, "numbers");
-  assert.equal(numbers.children.length, 100);
-  assert.equal(numbers.hasMore, true);
-  let before = events.length;
-  debuggerInstance.loadMoreVariables(numbers.id);
-  variables = (await waitFor("variables", before)).variables;
-  numbers = find(variables, "numbers");
-  assert.equal(numbers.children.length, 120);
-  assert.equal(find(numbers.children, "[119]").value, "119");
+  assert.equal(numbers.children.length, 3);
   assert.equal(numbers.hasMore, false);
+  assert.equal(find(variables, "large").reference, 0);
+  assert.equal(find(variables, "large").value, "size = 120");
+  assert.equal(find(variables, "unknown").type, "int[?]");
+  assert.equal(find(variables, "unknown").value, "size = ?");
+  assert.equal(find(variables, "items").value, "size = 3");
+  assert.equal(find(variables, "items").reference, 0);
 
-  before = events.length;
+  let before = events.length;
   debuggerInstance.command("next");
   variables = (await waitFor("paused", before)).variables;
   person = find(variables, "person");
   assert.equal(person.expanded, true);
   assert.equal(find(person.children, "age").value, "26");
   assert.equal(find(person.children, "position").expanded, true);
-  assert.equal(find(variables, "numbers").children.length, 120);
+  assert.equal(find(variables, "numbers").children.length, 3);
+  assert.equal(find(variables, "items").value, "size = 4");
 
   variables = await toggle(person);
   assert.equal(find(variables, "person").expanded, false);

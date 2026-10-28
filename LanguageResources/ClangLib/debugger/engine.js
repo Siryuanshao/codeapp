@@ -2154,6 +2154,7 @@ class QA {
   stderr = new AA(2);
   stdin = new S();
   debugger;
+  debuggeeMemory;
   /** A function which, when called, rejects the ongoing execution */
   rejector;
   /** The ongoing `run` promise, if any */
@@ -2199,6 +2200,10 @@ class QA {
   }
   async execute() {
     const A = performance.now(), g = new pA();
+    // Code App uses this shared memory to format its libc++ values while paused.
+    g.addEventListener("message", (event) => {
+      if (event.data.type === "debug") this.debuggeeMemory = event.data.info.memory.memory;
+    });
     this.stdout[J].attach(g), this.stderr[J].attach(g), this.debugger[J].attach(g);
     try {
       return await new Promise(async (I, C) => {
@@ -2232,6 +2237,7 @@ class QA {
     } catch (I) {
       return I === "stopped" ? { type: "stopped" } : HA(I);
     } finally {
+      this.debuggeeMemory = void 0;
       this.rejector = void 0, this.stdout[J].detach(g), this.stderr[J].detach(g), this.stdin[J].clear(), g.terminate();
     }
   }
