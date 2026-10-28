@@ -48,8 +48,7 @@ struct DirectoryPickerView: UIViewControllerRepresentable {
         ) {
             guard let url = urls.first else { return }
 
-            guard url.startAccessingSecurityScopedResource() else { return }
-
+            _ = url.startAccessingSecurityScopedResource()
             parent.onOpen(url)
         }
     }

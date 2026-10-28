@@ -132,6 +132,7 @@ struct WelcomeView: UIViewRepresentable {
                         if let newURL = try? URL(
                             resolvingBookmarkData: datas[key], bookmarkDataIsStale: &isStale)
                         {
+                            _ = newURL.startAccessingSecurityScopedResource()
                             onSelectFolderAsWorkspaceStorage(newURL)
                         }
                     }

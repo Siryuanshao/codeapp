@@ -178,6 +178,7 @@ class MainApp: ObservableObject {
     @Published var searchManager = GitHubSearchManager()
     @Published var textSearchManager = TextSearchManager()
     @Published var workSpaceStorage: WorkSpaceStorage
+    private(set) var currentWorkspaceBookmarkURL: URL?
 
     // Editor States
     @Published var problems: [URL: [MonacoEditorMarker]] = [:]
@@ -980,6 +981,9 @@ class MainApp: ObservableObject {
     /// Set the specified url as the root directory of the working space. The url can either be a local path or a remote path like sftp://xxxxx
     @MainActor
     func loadFolder(url: URL, resetEditorsAndTerminals: Bool = true) {
+        if resetEditorsAndTerminals || currentWorkspaceBookmarkURL == nil {
+            currentWorkspaceBookmarkURL = url.isFileURL ? url : nil
+        }
         if resetEditorsAndTerminals {
             self.closeAllEditors()
             self.terminalManager.resetAndSetNewRootDirectory(url: url)
@@ -995,7 +999,7 @@ class MainApp: ObservableObject {
             if workSpaceStorage.remoteConnected {
                 workSpaceStorage.disconnect()
             }
-            saveLocalURLToRecentFolders(url: url)
+            saveLocalURLToRecentFolders(url: currentWorkspaceBookmarkURL ?? url)
         }
 
         loadRepository(url: url)

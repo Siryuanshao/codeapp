@@ -14,6 +14,7 @@ class WorkSpaceStorage: ObservableObject {
 
     @Published var currentDirectory: FileItemRepresentable
     @Published var explorerIsBusy = false
+    @Published var directoryLoadError: String?
     @Published var editorIsBusy = false
     @Published var remoteFingerprint: String? = nil
 
@@ -250,6 +251,7 @@ class WorkSpaceStorage: ObservableObject {
 
     /// Reload the whole directory and invalidate all existing cache
     func updateDirectory(name: String, url: String) {
+        directoryLoadError = nil
         if url != currentDirectory.url {
             // Directory is updated
             directoryMonitor.removeAll()
@@ -258,19 +260,12 @@ class WorkSpaceStorage: ObservableObject {
             currentDirectory = FileItemRepresentable(name: name, url: url, isDirectory: true)
             requestDirectoryUpdateAt(id: url)
         } else {
-            // Directory is not updated
-            for key in directoryStorage.keys {
-                loadURL(
-                    url: key,
-                    completionHandler: { items, error in
-                        self.directoryStorage[key] = items
-                    })
+            let cachedDirectories = Array(directoryStorage.keys)
+            if !cachedDirectories.contains(url) {
+                requestDirectoryUpdateAt(id: url, forceUpdate: true)
             }
-
-            DispatchQueue.main.async {
-                withAnimation(.easeInOut) {
-                    self.currentDirectory = self.buildTree(at: url)
-                }
+            for key in cachedDirectories {
+                requestDirectoryUpdateAt(id: key, forceUpdate: true)
             }
         }
     }
@@ -282,8 +277,10 @@ class WorkSpaceStorage: ObservableObject {
         }
         if !directoryMonitor.keys.contains(id) && id.hasPrefix("file://") {
             directoryMonitor.monitorURL(url: id) { _ in
-                self.onDirectoryChangeAction?(id)
-                self.requestDirectoryUpdateAt(id: id, forceUpdate: true)
+                DispatchQueue.main.async {
+                    self.onDirectoryChangeAction?(id)
+                    self.requestDirectoryUpdateAt(id: id, forceUpdate: true)
+                }
             }
         }
 
@@ -291,7 +288,14 @@ class WorkSpaceStorage: ObservableObject {
             url: id,
             completionHandler: { items, error in
                 guard let items = items else {
+                    self.directoryMonitor.removeMonitorAt(url: id)
+                    if id == self.currentDirectory.url {
+                        self.directoryLoadError = error?.localizedDescription
+                    }
                     return
+                }
+                if id == self.currentDirectory.url {
+                    self.directoryLoadError = nil
                 }
                 self.directoryStorage[id] = items
                 DispatchQueue.main.async {

@@ -121,6 +121,25 @@ struct ExplorerContainer: View {
 
             InfinityProgressView(enabled: App.workSpaceStorage.explorerIsBusy)
 
+            if let error = App.workSpaceStorage.directoryLoadError {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("errors.fs.directory_unavailable").bold()
+                    Text(error)
+                    if !App.workSpaceStorage.remoteConnected {
+                        Text("errors.fs.reselect_folder")
+                        Button("common.open_folder", action: onPickNewDirectory)
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .padding(.top, 4)
+                    }
+                }
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+            }
+
             ExplorerFileTree(
                 searchString: searchString, onDrag: onDragCell,
                 onMoveFile: onMoveFile
