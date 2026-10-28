@@ -5,6 +5,7 @@
 //  Created by Ken Chung on 12/12/2020.
 //
 
+import Darwin
 import SwiftUI
 import ios_system
 
@@ -77,8 +78,6 @@ class Executor {
                     }
                 } else {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        self.prompt =
-                            "\(FileManager().currentDirectoryPath.split(separator: "/").last?.removingPercentEncoding ?? "") $ "
                         self.requestInput(self.prompt)
                     }
                 }
@@ -93,6 +92,7 @@ class Executor {
         if stopWebAssembly(session: UnsafeRawPointer(sessionIdentifier)) {
             return
         }
+        guard recoverCurrentDirectoryIfNeeded() else { return }
         ios_switchSession(sessionIdentifier)
         ios_kill()
     }
@@ -111,6 +111,7 @@ class Executor {
             stdinString += input + "\n"
         }
 
+        guard recoverCurrentDirectoryIfNeeded() else { return }
         ios_switchSession(sessionIdentifier)
 
         stdin_file_input?.write(data)
@@ -209,12 +210,25 @@ class Executor {
             self.lastCommand = command
             Thread.current.name = command
 
-            ios_switchSession(self.sessionIdentifier)
-            ios_setDirectoryURL(self.currentWorkingDirectory)
-            ios_setContext(self.sessionIdentifier)
-            ios_setStreams(self.stdin_file, self.stdout_file, self.stdout_file)
-
-            let code = self.run(command: command)
+            let directoryAvailable = FileManager.default.changeCurrentDirectoryPath(
+                self.currentWorkingDirectory.path)
+            let code: Int32
+            if directoryAvailable {
+                ios_switchSession(self.sessionIdentifier)
+                ios_setDirectoryURL(self.currentWorkingDirectory)
+                ios_setContext(self.sessionIdentifier)
+                ios_setStreams(self.stdin_file, self.stdout_file, self.stdout_file)
+                code = self.run(command: command)
+            } else {
+                _ = self.recoverCurrentDirectoryIfNeeded()
+                let message = String(
+                    format: NSLocalizedString("terminal.directory_unavailable", comment: ""),
+                    self.currentWorkingDirectory.lastPathComponent)
+                DispatchQueue.main.async {
+                    self.receivedStderr(Data("\(message)\r\n".utf8))
+                }
+                code = 1
+            }
 
             close(stdin_pipe.fileHandleForReading.fileDescriptor)
             self.stdin_file_input = nil
@@ -225,7 +239,9 @@ class Executor {
                 // Pipe is still open, send information to close it, once all output has been processed.
                 stdout_pipe.fileHandleForWriting.write(self.END_OF_TRANSMISSION.data(using: .utf8)!)
                 while self.stdout_active {
-                    fflush(thread_stdout)
+                    if directoryAvailable {
+                        fflush(thread_stdout)
+                    }
                 }
             }
 
@@ -235,26 +251,34 @@ class Executor {
                 self.state = .idle
             }
 
-            var url = URL(fileURLWithPath: FileManager().currentDirectoryPath)
+            if directoryAvailable {
+                var url = URL(fileURLWithPath: FileManager().currentDirectoryPath)
 
-            // Sometimes pip would change the working directory to an inaccesible location,
-            // we need to verify that the current directory is readable.
-            if (try? FileManager.default.contentsOfDirectory(
-                at: url, includingPropertiesForKeys: nil)) == nil
-            {
-                url = self.currentWorkingDirectory
-            }
+                // Sometimes pip would change the working directory to an inaccesible location,
+                // we need to verify that the current directory is readable.
+                if (try? FileManager.default.contentsOfDirectory(
+                    at: url, includingPropertiesForKeys: nil)) == nil
+                {
+                    url = self.currentWorkingDirectory
+                }
 
-            ios_setMiniRootURL(url)
+                ios_setMiniRootURL(url)
 
-            DispatchQueue.main.async {
-                self.prompt =
-                    "\(FileManager().currentDirectoryPath.split(separator: "/").last?.removingPercentEncoding ?? "") $ "
-                self.currentWorkingDirectory = url
+                DispatchQueue.main.async {
+                    self.prompt = "\(url.lastPathComponent.removingPercentEncoding ?? "") $ "
+                    self.currentWorkingDirectory = url
+                }
             }
 
             completionHandler(code)
         }
+    }
+
+    private func recoverCurrentDirectoryIfNeeded() -> Bool {
+        var path = [CChar](repeating: 0, count: Int(PATH_MAX))
+        if getcwd(&path, path.count) != nil { return true }
+        return FileManager.default.changeCurrentDirectoryPath(currentWorkingDirectory.path)
+            || FileManager.default.changeCurrentDirectoryPath(getRootDirectory().path)
     }
 
     private func run(command: String) -> Int32 {

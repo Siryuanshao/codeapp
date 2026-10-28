@@ -539,6 +539,7 @@
 "errors.fs.unknown" = "未知错误。";
 "errors.fs.directory_unavailable" = "无法读取此文件夹。";
 "errors.fs.reselect_folder" = "如需恢复访问权限，请点“打开文件夹”并重新选择此文件夹。";
+"terminal.directory_unavailable" = "无法打开文件夹 %@，请重新打开。";
 "errors.fs.connection_failure" = "连接失败。";
 "errors.fs.authentication_failure" = "身份验证失败。";
 "errors.fs.attempting_to_copy_parent_to_child" = "尝试将父文件夹复制到子文件夹。";

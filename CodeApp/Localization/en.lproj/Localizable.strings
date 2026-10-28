@@ -439,6 +439,7 @@ are licensed under [BSD-3-Clause License](https://en.wikipedia.org/wiki/BSD_lice
 "errors.fs.unknown" = "Unknown error";
 "errors.fs.directory_unavailable" = "Unable to read this folder.";
 "errors.fs.reselect_folder" = "To restore access, choose Open Folder and select this folder again.";
+"terminal.directory_unavailable" = "Cannot open folder %@. Please open it again.";
 "errors.fs.connection_failure" = "Connection failed";
 "errors.fs.authentication_failure" = "Authentication failed";
 "errors.fs.attempting_to_copy_parent_to_child" = "Source is a parent of the target.";
