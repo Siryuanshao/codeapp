@@ -28,7 +28,6 @@ class Executor {
     private var receivedStderr: ((_ data: Data) -> Void)
     private var requestInput: ((_ prompt: String) -> Void)
     private var lastCommand: String? = nil
-    private var stdout_active = false
     private let END_OF_TRANSMISSION = "\u{04}"
 
     var currentWorkingDirectory: URL
@@ -124,7 +123,8 @@ class Executor {
 
     }
 
-    private func _onStdout(data: Data) {
+    @discardableResult
+    private func _onStdout(data: Data) -> Bool {
         let finished = data.contains(0x04)
         let output = finished ? Data(data.filter { $0 != 0x04 }) : data
         let str = String(decoding: output, as: UTF8.self)
@@ -147,13 +147,7 @@ class Executor {
             }
         }
 
-        if finished { stdout_active = false }
-    }
-
-    private func onStdout(_ stdout: FileHandle) {
-        if !stdout_active { return }
-        let data = stdout.availableData
-        _onStdout(data: data)
+        return finished
     }
 
     // Called when the stderr file handle is written to
@@ -194,9 +188,18 @@ class Executor {
             stdout_pipe = Pipe()
             stdout_file = fdopen(stdout_pipe.fileHandleForWriting.fileDescriptor, "w")
         }
-        stdout_pipe.fileHandleForReading.readabilityHandler = self.onStdout
-
-        stdout_active = true
+        let stdoutLock = NSLock()
+        let stdoutFinished = DispatchSemaphore(value: 0)
+        var stdoutClosed = false
+        stdout_pipe.fileHandleForReading.readabilityHandler = { handle in
+            stdoutLock.lock()
+            defer { stdoutLock.unlock() }
+            guard !stdoutClosed else { return }
+            if self._onStdout(data: handle.availableData) {
+                stdoutClosed = true
+                stdoutFinished.signal()
+            }
+        }
 
         let queue = DispatchQueue(label: "\(command)", qos: .utility)
 
@@ -230,7 +233,7 @@ class Executor {
                 code = 1
             }
 
-            close(stdin_pipe.fileHandleForReading.fileDescriptor)
+            try? stdin_pipe.fileHandleForReading.close()
             self.stdin_file_input = nil
 
             // Send info to the stdout handler that the command has finished:
@@ -238,14 +241,14 @@ class Executor {
             if writeOpen >= 0 {
                 // Pipe is still open, send information to close it, once all output has been processed.
                 stdout_pipe.fileHandleForWriting.write(self.END_OF_TRANSMISSION.data(using: .utf8)!)
-                while self.stdout_active {
-                    if directoryAvailable {
-                        fflush(thread_stdout)
-                    }
-                }
+                stdoutFinished.wait()
             }
 
-            close(stdout_pipe.fileHandleForReading.fileDescriptor)
+            stdoutLock.lock()
+            stdoutClosed = true
+            stdout_pipe.fileHandleForReading.readabilityHandler = nil
+            try? stdout_pipe.fileHandleForReading.close()
+            stdoutLock.unlock()
 
             DispatchQueue.main.async {
                 self.state = .idle
