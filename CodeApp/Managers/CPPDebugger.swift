@@ -344,7 +344,7 @@ struct CPPDebugFloatingToolbar: View {
     ) -> some View {
         Button(action: action) {
             Image(systemName: icon)
-                .font(.system(size: 15, weight: .medium))
+                .font(.system(size: 14, weight: .medium))
                 .foregroundColor(color)
                 .frame(width: 38, height: 44)
                 .contentShape(Rectangle())
