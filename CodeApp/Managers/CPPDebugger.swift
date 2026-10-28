@@ -79,6 +79,7 @@ final class CPPDebugger: NSObject, ObservableObject, WKNavigationDelegate, WKScr
         currentLine = nil
         currentFile = nil
         state = .compiling
+        let workspaceAccess = app.currentWorkspaceAccess
 
         Task { @MainActor in
             await app.saveCurrentFile()
@@ -94,6 +95,7 @@ final class CPPDebugger: NSObject, ObservableObject, WKNavigationDelegate, WKScr
             let binary = FileManager.default.temporaryDirectory
                 .appendingPathComponent("codeapp-debug-\(UUID().uuidString).wasm")
             self.compilerQueue.async {
+                defer { withExtendedLifetime(workspaceAccess) {} }
                 let result = Self.compile(source: source, binary: binary)
                 let data = result.status == 0 ? try? Data(contentsOf: binary) : nil
                 try? FileManager.default.removeItem(at: binary)

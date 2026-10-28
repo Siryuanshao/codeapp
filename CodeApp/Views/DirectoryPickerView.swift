@@ -17,6 +17,7 @@ struct DirectoryPickerView: UIViewControllerRepresentable {
 
     let type: DirectoryPickerViewType
     let onOpen: ((URL) -> Void)
+    var startSecurityScopedAccess = true
 
     func makeCoordinator() -> Coordinator {
         return DirectoryPickerView.Coordinator(parent1: self)
@@ -48,7 +49,9 @@ struct DirectoryPickerView: UIViewControllerRepresentable {
         ) {
             guard let url = urls.first else { return }
 
-            _ = url.startAccessingSecurityScopedResource()
+            if parent.startSecurityScopedAccess {
+                _ = url.startAccessingSecurityScopedResource()
+            }
             parent.onOpen(url)
         }
     }

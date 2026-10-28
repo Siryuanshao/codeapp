@@ -31,16 +31,18 @@ class Executor {
     private let END_OF_TRANSMISSION = "\u{04}"
 
     var currentWorkingDirectory: URL
+    private var workspaceAccess: WorkspaceAccess?
     var state: State = .idle
     var prompt: String
 
-    func setNewWorkingDirectory(url: URL) {
+    func setNewWorkingDirectory(url: URL, workspaceAccess: WorkspaceAccess?) {
         currentWorkingDirectory = url
+        self.workspaceAccess = workspaceAccess
         prompt = "\(url.lastPathComponent) $ "
     }
 
     init(
-        root: URL,
+        root: URL, workspaceAccess: WorkspaceAccess? = nil,
         sessionIdentifier: String = "com.thebaselab.terminal",
         onStdout: @escaping ((_ data: Data) -> Void),
         onStderr: @escaping ((_ data: Data) -> Void),
@@ -48,6 +50,7 @@ class Executor {
     ) {
         self.sessionIdentifier = sessionIdentifier.withCString { strdup($0)! }
         currentWorkingDirectory = root
+        self.workspaceAccess = workspaceAccess
         prompt = "\(root.lastPathComponent) $ "
         receivedStdout = onStdout
         receivedStderr = onStderr
@@ -201,9 +204,12 @@ class Executor {
             }
         }
 
+        let commandDirectory = currentWorkingDirectory
+        let commandAccess = workspaceAccess
         let queue = DispatchQueue(label: "\(command)", qos: .utility)
 
         queue.async {
+            defer { withExtendedLifetime(commandAccess) {} }
             if isInteractive {
                 self.state = .interactive
             } else {
@@ -214,11 +220,11 @@ class Executor {
             Thread.current.name = command
 
             let directoryAvailable = FileManager.default.changeCurrentDirectoryPath(
-                self.currentWorkingDirectory.path)
+                commandDirectory.path)
             let code: Int32
             if directoryAvailable {
                 ios_switchSession(self.sessionIdentifier)
-                ios_setDirectoryURL(self.currentWorkingDirectory)
+                ios_setDirectoryURL(commandDirectory)
                 ios_setContext(self.sessionIdentifier)
                 ios_setStreams(self.stdin_file, self.stdout_file, self.stdout_file)
                 code = self.run(command: command)
@@ -226,7 +232,7 @@ class Executor {
                 _ = self.recoverCurrentDirectoryIfNeeded()
                 let message = String(
                     format: NSLocalizedString("terminal.directory_unavailable", comment: ""),
-                    self.currentWorkingDirectory.lastPathComponent)
+                    commandDirectory.lastPathComponent)
                 DispatchQueue.main.async {
                     self.receivedStderr(Data("\(message)\r\n".utf8))
                 }
@@ -262,12 +268,13 @@ class Executor {
                 if (try? FileManager.default.contentsOfDirectory(
                     at: url, includingPropertiesForKeys: nil)) == nil
                 {
-                    url = self.currentWorkingDirectory
+                    url = commandDirectory
                 }
 
                 ios_setMiniRootURL(url)
 
                 DispatchQueue.main.async {
+                    guard self.currentWorkingDirectory == commandDirectory else { return }
                     self.prompt = "\(url.lastPathComponent.removingPercentEncoding ?? "") $ "
                     self.currentWorkingDirectory = url
                 }

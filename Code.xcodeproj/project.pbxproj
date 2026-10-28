@@ -13,6 +13,8 @@
 		94127C40280335C8008C7F82 /* Themes in Resources */ = {isa = PBXBuildFile; fileRef = 94127C3F280335C8008C7F82 /* Themes */; };
 		94127C41280335C8008C7F82 /* Themes in Resources */ = {isa = PBXBuildFile; fileRef = 94127C3F280335C8008C7F82 /* Themes */; };
 		941969252802AB2C008AAEB2 /* FileSystemProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 941969242802AB2C008AAEB2 /* FileSystemProvider.swift */; };
+		CB06A9110000000000000002 /* WorkspaceAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB06A9110000000000000001 /* WorkspaceAccess.swift */; };
+		CB06A9110000000000000003 /* WorkspaceAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB06A9110000000000000001 /* WorkspaceAccess.swift */; };
 		941969292802AB64008AAEB2 /* FTPFileSystemProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 941969282802AB64008AAEB2 /* FTPFileSystemProvider.swift */; };
 		9419692B2802AB88008AAEB2 /* LocalFileSystemProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9419692A2802AB88008AAEB2 /* LocalFileSystemProvider.swift */; };
 		9419692D2803117D008AAEB2 /* InfiniteProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9419692C2803117D008AAEB2 /* InfiniteProgressView.swift */; };
@@ -1857,6 +1859,7 @@
 		949B3CC425DEA89A00BC83B5 /* String+toCString.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+toCString.swift"; sourceTree = "<group>"; };
 		949B3CC625DEAAA600BC83B5 /* node.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = node.swift; sourceTree = "<group>"; };
 		CB06A9100000000000000001 /* CPPDebugger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CPPDebugger.swift; sourceTree = "<group>"; };
+		CB06A9110000000000000001 /* WorkspaceAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceAccess.swift; sourceTree = "<group>"; };
 		949CDF492C6658DC00FFC5B1 /* LanguageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageService.swift; sourceTree = "<group>"; };
 		949CDF4C2C6C47AD00FFC5B1 /* LSPFrameAdaptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LSPFrameAdaptor.swift; sourceTree = "<group>"; };
 		949D787E2C33C4EB006D7480 /* Java.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Java.swift; sourceTree = "<group>"; };
@@ -2870,6 +2873,7 @@
 				9441129B28217D4C00A8F1D7 /* FTP */,
 				9441129F282181C900A8F1D7 /* SFTP */,
 				94A777A1257ABDC3008FE7B2 /* WorkSpaceStorage.swift */,
+				CB06A9110000000000000001 /* WorkspaceAccess.swift */,
 				9441129C28217D6A00A8F1D7 /* TerminalProvider.swift */,
 				941969242802AB2C008AAEB2 /* FileSystemProvider.swift */,
 				94A0461228049A7A00182275 /* GitServiceProvider.swift */,
@@ -3704,6 +3708,7 @@
 				948A5FEA2A87B09500303C12 /* NSError+init.swift in Sources */,
 				9FD5BCEA29238B6C00F20C4B /* TerminalExtension.swift in Sources */,
 				9419696F280316C7008AAEB2 /* FileSystemProvider.swift in Sources */,
+				CB06A9110000000000000002 /* WorkspaceAccess.swift in Sources */,
 				9474D2952B6B461E00CCC530 /* MonacoImplementation.swift in Sources */,
 				941E53B728787D3100561C7E /* MenuButtonView.swift in Sources */,
 				94196970280316C7008AAEB2 /* SettingsKeyboardShortcuts.swift in Sources */,
@@ -3899,6 +3904,7 @@
 				948A5FE92A87B09500303C12 /* NSError+init.swift in Sources */,
 				9FD5BCE929238B6C00F20C4B /* TerminalExtension.swift in Sources */,
 				941969252802AB2C008AAEB2 /* FileSystemProvider.swift in Sources */,
+				CB06A9110000000000000003 /* WorkspaceAccess.swift in Sources */,
 				9474D2942B6B461E00CCC530 /* MonacoImplementation.swift in Sources */,
 				941E53B628787D3100561C7E /* MenuButtonView.swift in Sources */,
 				94C893E2279D09D400DFBF29 /* SettingsKeyboardShortcuts.swift in Sources */,

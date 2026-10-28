@@ -249,6 +249,10 @@ class WorkSpaceStorage: ObservableObject {
         onRemoteDisconnectAction = action
     }
 
+    func setLocalWorkspaceAccess(_ access: WorkspaceAccess?) {
+        (fss["file"]?.gitServiceProvider as? LocalGitServiceProvider)?.setWorkspaceAccess(access)
+    }
+
     /// Reload the whole directory and invalidate all existing cache
     func updateDirectory(name: String, url: String) {
         directoryLoadError = nil

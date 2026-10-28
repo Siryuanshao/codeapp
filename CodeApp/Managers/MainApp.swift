@@ -179,6 +179,7 @@ class MainApp: ObservableObject {
     @Published var textSearchManager = TextSearchManager()
     @Published var workSpaceStorage: WorkSpaceStorage
     private(set) var currentWorkspaceBookmarkURL: URL?
+    private(set) var currentWorkspaceAccess: WorkspaceAccess?
 
     // Editor States
     @Published var problems: [URL: [MonacoEditorMarker]] = [:]
@@ -509,8 +510,8 @@ class MainApp: ObservableObject {
                     onCreateNewFile: {
                         self.stateManager.showsNewFileSheet.toggle()
                     },
-                    onSelectFolderAsWorkspaceStorage: { url in
-                        self.loadFolder(url: url)
+                    onSelectFolderAsWorkspaceStorage: { location in
+                        self.loadFolder(url: location.url, securityScopeURL: location.accessURL)
                     },
                     onSelectFolder: {
                         self.stateManager.showsDirectoryPicker.toggle()
@@ -952,21 +953,18 @@ class MainApp: ObservableObject {
 
     private func saveLocalURLToRecentFolders(url: URL) {
         guard url.isFileURL,
-            let newBookmark = try? url.bookmarkData()
+            let newBookmark = try? WorkspaceBookmark.make(
+                url: url, accessURL: currentWorkspaceAccess?.url)
         else {
             return
         }
         if var bookmarks = UserDefaults.standard.value(forKey: "recentFolder") as? [Data] {
             bookmarks = bookmarks.filter {
-                var isStale = false
-                guard
-                    let newURL = try? URL(
-                        resolvingBookmarkData: $0, bookmarkDataIsStale: &isStale)
-                else {
+                guard let location = try? WorkspaceBookmark.resolve($0) else {
                     return false
                 }
                 // We do not have a stable identity of a url due to sandboxing, compare lastPathComponent instead
-                return (newURL.lastPathComponent != url.lastPathComponent && !isStale)
+                return (location.url.lastPathComponent != url.lastPathComponent && !location.isStale)
             }
             bookmarks = [newBookmark] + bookmarks
             if bookmarks.count > 5 {
@@ -978,15 +976,39 @@ class MainApp: ObservableObject {
         }
     }
 
+    func workspaceBookmarkData() -> Data? {
+        guard let url = currentWorkspaceBookmarkURL ?? workSpaceStorage.currentDirectory._url,
+            url.isFileURL
+        else { return nil }
+        return try? WorkspaceBookmark.make(url: url, accessURL: currentWorkspaceAccess?.url)
+    }
+
     /// Set the specified url as the root directory of the working space. The url can either be a local path or a remote path like sftp://xxxxx
     @MainActor
-    func loadFolder(url: URL, resetEditorsAndTerminals: Bool = true) {
+    func loadFolder(
+        url: URL, securityScopeURL: URL? = nil, resetEditorsAndTerminals: Bool = true
+    ) {
         if resetEditorsAndTerminals || currentWorkspaceBookmarkURL == nil {
             currentWorkspaceBookmarkURL = url.isFileURL ? url : nil
         }
         if resetEditorsAndTerminals {
+            let previousAccess = currentWorkspaceAccess
+            let accessURL = securityScopeURL ?? url
+            let newAccess = accessURL.isFileURL ? WorkspaceAccess(url: accessURL) : nil
+            if let newAccess, newAccess.isAccessing {
+                currentWorkspaceAccess = newAccess
+            } else if let previousAccess, previousAccess.contains(url) {
+                currentWorkspaceAccess = previousAccess
+            } else {
+                currentWorkspaceAccess = nil
+            }
             self.closeAllEditors()
-            self.terminalManager.resetAndSetNewRootDirectory(url: url)
+            self.workSpaceStorage.setLocalWorkspaceAccess(currentWorkspaceAccess)
+            self.textSearchManager.executor?.setNewWorkingDirectory(
+                url: url.isFileURL ? url : getRootDirectory(),
+                workspaceAccess: currentWorkspaceAccess)
+            self.terminalManager.resetAndSetNewRootDirectory(
+                url: url, workspaceAccess: currentWorkspaceAccess)
         }
 
         self.workSpaceStorage.updateDirectory(

@@ -69,7 +69,7 @@ class TextSearchManager: ObservableObject {
         message.removeAll()
     }
 
-    func search(str: String, path: String) {
+    func search(str: String, path: String, workspaceAccess: WorkspaceAccess?) {
         results = [:]
         resultCount = 0
         executor?.dispatch(
@@ -77,6 +77,7 @@ class TextSearchManager: ObservableObject {
                 "grep -rin --exclude-dir=node_modules --exclude-dir=.git -m 1000 \"\(str.replacingOccurrences(of: "\"", with: #"\""#))\" \"\(path)\""
         ) { _ in
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                defer { withExtendedLifetime(workspaceAccess) {} }
                 self.parseResult()
                 self.tempResponse = ""
             }

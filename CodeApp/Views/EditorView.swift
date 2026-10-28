@@ -71,7 +71,8 @@ struct EditorView: View {
                             onOpen: { url in
                                 App.loadFolder(url: url)
                                 isSideBarVisible = true
-                            })
+                            },
+                            startSecurityScopedAccess: false)
                     }
                 }.foregroundColor(.clear).font(.system(size: 1))
 

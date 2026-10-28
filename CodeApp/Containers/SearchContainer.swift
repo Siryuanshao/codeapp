@@ -27,7 +27,9 @@ struct SearchContainer: View {
         else {
             return
         }
-        App.textSearchManager.search(str: App.textSearchManager.searchTerm, path: path)
+        App.textSearchManager.search(
+            str: App.textSearchManager.searchTerm, path: path,
+            workspaceAccess: App.currentWorkspaceAccess)
     }
 
     func onClearSearchResults() {

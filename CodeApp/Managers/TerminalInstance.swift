@@ -123,8 +123,8 @@ class TerminalInstance: NSObject, WKScriptMessageHandler, WKNavigationDelegate, 
         applyFont(fontFamily: options.fontFamily)
     }
 
-    func resetAndSetNewRootDirectory(url: URL) {
-        executor?.setNewWorkingDirectory(url: url)
+    func resetAndSetNewRootDirectory(url: URL, workspaceAccess: WorkspaceAccess?) {
+        executor?.setNewWorkingDirectory(url: url, workspaceAccess: workspaceAccess)
         guard let prompt = executor?.prompt else {
             return
         }
@@ -464,13 +464,17 @@ class TerminalInstance: NSObject, WKScriptMessageHandler, WKNavigationDelegate, 
         }
     }
 
-    init(root: URL, options: TerminalOptions, name: String = "Terminal", id: UUID = UUID()) {
+    init(
+        root: URL, options: TerminalOptions, name: String = "Terminal", id: UUID = UUID(),
+        workspaceAccess: WorkspaceAccess? = nil
+    ) {
         self.id = id
         self.name = name
         self.options = options
         super.init()
         self.executor = Executor(
             root: root,
+            workspaceAccess: workspaceAccess,
             sessionIdentifier: "com.thebaselab.terminal.\(id.uuidString)",
             onStdout: { [weak self] data in
                 self?.writeToLocalTerminal(data: data)

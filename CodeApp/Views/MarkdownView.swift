@@ -55,7 +55,7 @@ struct WelcomeView: UIViewRepresentable {
     @EnvironmentObject var themeManager: ThemeManager
 
     let onCreateNewFile: () -> Void
-    let onSelectFolderAsWorkspaceStorage: (URL) -> Void
+    let onSelectFolderAsWorkspaceStorage: (WorkspaceLocation) -> Void
     let onSelectFolder: () -> Void
     let onSelectFile: () -> Void
     let onNavigateToCloneSection: () -> Void
@@ -86,12 +86,9 @@ struct WelcomeView: UIViewRepresentable {
             var recentFolders = "\n"
 
             for i in datas.indices.reversed() {
-                var isStale = false
-                if let newURL = try? URL(
-                    resolvingBookmarkData: datas[i], bookmarkDataIsStale: &isStale)
-                {
+                if let location = try? WorkspaceBookmark.resolve(datas[i]) {
                     recentFolders =
-                        "\n[\(newURL.lastPathComponent)](https://thebaselab.com/code/previousFolder/\(i))"
+                        "\n[\(location.url.lastPathComponent)](https://thebaselab.com/code/previousFolder/\(i))"
                         + recentFolders
                 }
             }
@@ -128,12 +125,8 @@ struct WelcomeView: UIViewRepresentable {
                         i.replacingOccurrences(
                             of: "https://thebaselab.com/code/previousFolder/", with: ""))!
                     if let datas = UserDefaults.standard.value(forKey: "recentFolder") as? [Data] {
-                        var isStale = false
-                        if let newURL = try? URL(
-                            resolvingBookmarkData: datas[key], bookmarkDataIsStale: &isStale)
-                        {
-                            _ = newURL.startAccessingSecurityScopedResource()
-                            onSelectFolderAsWorkspaceStorage(newURL)
+                        if let location = try? WorkspaceBookmark.resolve(datas[key]) {
+                            onSelectFolderAsWorkspaceStorage(location)
                         }
                     }
                 default:

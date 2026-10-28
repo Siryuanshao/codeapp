@@ -32,10 +32,7 @@ struct MainScene: View {
 
     func saveSceneState() {
         guard stateRestorationEnabled else { return }
-        guard let currentDirectory = App.workSpaceStorage.currentDirectory._url,
-            currentDirectory.isFileURL,
-            let rootDirBookmarkData = try? (App.currentWorkspaceBookmarkURL ?? currentDirectory)
-                .bookmarkData()
+        guard let rootDirBookmarkData = App.workspaceBookmarkData()
         else {
             return
         }
@@ -61,13 +58,11 @@ struct MainScene: View {
 
         guard stateRestorationEnabled else { return }
         guard let rootDirBookmark = rootDirectoryBookmark,
-            let rootDir = try? URL(
-                resolvingBookmarkData: rootDirBookmark, bookmarkDataIsStale: &isStale)
+            let location = try? WorkspaceBookmark.resolve(rootDirBookmark)
         else {
             return
         }
-        _ = rootDir.startAccessingSecurityScopedResource()
-        App.loadFolder(url: rootDir)
+        App.loadFolder(url: location.url, securityScopeURL: location.accessURL)
 
         let editors = getOpenEditorsBookmarks().compactMap {
             try? URL(resolvingBookmarkData: $0, bookmarkDataIsStale: &isStale)

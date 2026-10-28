@@ -32,6 +32,8 @@ class LocalGitServiceProvider: GitServiceProvider {
     private var signature: Signature? = nil
     private var contentCache = NSCache<NSString, NSString>()
     private var credentialsHelper = LocalGitCredentialsHelper()
+    private var workspaceAccess: WorkspaceAccess?
+    private let workspaceAccessLock = NSLock()
 
     public var hasRepository: Bool {
         return repository != nil
@@ -44,6 +46,18 @@ class LocalGitServiceProvider: GitServiceProvider {
     init(root: URL) {
         self.workingURL = root
         loadDirectory(url: root)
+    }
+
+    func setWorkspaceAccess(_ access: WorkspaceAccess?) {
+        workspaceAccessLock.lock()
+        workspaceAccess = access
+        workspaceAccessLock.unlock()
+    }
+
+    private func currentWorkspaceAccess() -> WorkspaceAccess? {
+        workspaceAccessLock.lock()
+        defer { workspaceAccessLock.unlock() }
+        return workspaceAccess
     }
 
     private func checkedRepository() throws -> Repository {
@@ -61,8 +75,10 @@ class LocalGitServiceProvider: GitServiceProvider {
         }
     }
     private func WorkerQueueTask<T>(_ body: @escaping () throws -> T) async throws -> T {
+        let access = currentWorkspaceAccess()
         return try await withCheckedThrowingContinuation { continuation in
             workerQueue.async {
+                defer { withExtendedLifetime(access) {} }
                 do {
                     continuation.resume(returning: try body())
                 } catch {

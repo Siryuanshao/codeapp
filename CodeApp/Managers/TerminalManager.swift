@@ -21,6 +21,7 @@ class TerminalManager: ObservableObject {
     @Published private(set) var remoteTerminalId: UUID?
 
     private var rootURL: URL
+    private var workspaceAccess: WorkspaceAccess?
     private var options: TerminalOptions
     private var terminalServiceProvider: TerminalServiceProvider?
     private var terminalCounter: Int = 1
@@ -91,7 +92,8 @@ class TerminalManager: ObservableObject {
     }
 
     private func createTerminalInstance(name: String) -> TerminalInstance {
-        let terminal = TerminalInstance(root: rootURL, options: options, name: name)
+        let terminal = TerminalInstance(
+            root: rootURL, options: options, name: name, workspaceAccess: workspaceAccess)
         // We do not support creating remote terminal instances for now
         return terminal
     }
@@ -252,13 +254,14 @@ class TerminalManager: ObservableObject {
     }
 
     /// Close all terminals exepct the first one, and reset that terminal's state
-    func resetAndSetNewRootDirectory(url: URL) {
+    func resetAndSetNewRootDirectory(url: URL, workspaceAccess: WorkspaceAccess?) {
         assertMainThread()
         rootURL = url
+        self.workspaceAccess = workspaceAccess
         for terminal in terminals.suffix(terminals.count - 1) {
             closeTerminal(id: terminal.id)
         }
-        terminals.first?.resetAndSetNewRootDirectory(url: url)
+        terminals.first?.resetAndSetNewRootDirectory(url: url, workspaceAccess: workspaceAccess)
     }
 
     /// Sets the terminal service provider on the active terminal only.
