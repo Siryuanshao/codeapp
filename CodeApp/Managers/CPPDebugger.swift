@@ -451,11 +451,22 @@ struct CPPDebugPanel: View {
                 Divider()
                 VStack(alignment: .leading, spacing: 4) {
                     Text("debug.output").bold()
-                    ScrollView {
-                        Text(debugger.output)
-                            .font(.system(.caption, design: .monospaced))
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 0) {
+                                Text(debugger.output)
+                                    .font(.system(.caption, design: .monospaced))
+                                    .textSelection(.enabled)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                Color.clear.frame(height: 1).id("debug-output-bottom")
+                            }
+                        }
+                        .onChange(of: debugger.output) { _ in
+                            proxy.scrollTo("debug-output-bottom", anchor: .bottom)
+                        }
+                        .onAppear {
+                            proxy.scrollTo("debug-output-bottom", anchor: .bottom)
+                        }
                     }
                     if debugger.state.isActive {
                         HStack {
