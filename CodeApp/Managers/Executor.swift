@@ -66,7 +66,7 @@ class Executor {
         free(sessionIdentifier)
     }
 
-    func evaluateCommands(_ cmds: [String]) {
+    func evaluateCommands(_ cmds: [String], securityScopedAccess: WorkspaceAccess? = nil) {
         guard !cmds.isEmpty else {
             return
         }
@@ -76,7 +76,7 @@ class Executor {
             completionHandler: { code in
                 if !commands.isEmpty && code == 0 {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        self.evaluateCommands(commands)
+                        self.evaluateCommands(commands, securityScopedAccess: securityScopedAccess)
                     }
                 } else {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {

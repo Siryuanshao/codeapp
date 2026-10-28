@@ -16,7 +16,7 @@ enum DirectoryPickerViewType {
 struct DirectoryPickerView: UIViewControllerRepresentable {
 
     let type: DirectoryPickerViewType
-    let onOpen: ((URL) -> Void)
+    let onOpen: ((URL, WorkspaceAccess?) -> Void)
     var startSecurityScopedAccess = true
 
     func makeCoordinator() -> Coordinator {
@@ -49,10 +49,8 @@ struct DirectoryPickerView: UIViewControllerRepresentable {
         ) {
             guard let url = urls.first else { return }
 
-            if parent.startSecurityScopedAccess {
-                _ = url.startAccessingSecurityScopedResource()
-            }
-            parent.onOpen(url)
+            let access = parent.startSecurityScopedAccess ? WorkspaceAccess(url: url) : nil
+            parent.onOpen(url, access)
         }
     }
 }

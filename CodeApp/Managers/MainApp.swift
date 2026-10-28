@@ -41,10 +41,12 @@ class CreateFileSheetManager: ObservableObject {
 class DirectoryPickerManager: ObservableObject {
     @Published var showsPicker: Bool = false
 
-    var callback: ((URL) -> Void)?
+    var callback: ((URL, WorkspaceAccess?) -> Void)?
     var type: DirectoryPickerViewType = .directory
 
-    func showPicker(type: DirectoryPickerViewType, callback: @escaping ((URL) -> Void)) {
+    func showPicker(
+        type: DirectoryPickerViewType, callback: @escaping ((URL, WorkspaceAccess?) -> Void)
+    ) {
         self.type = type
         self.callback = callback
         showsPicker = true
@@ -193,7 +195,11 @@ class MainApp: ObservableObject {
     @Published var isSyncing: Bool = false
     @Published var aheadBehind: (Int, Int)? = nil
 
-    var urlQueue: [URL] = []
+    private struct QueuedFile {
+        let url: URL
+        let securityScopedAccess: WorkspaceAccess?
+    }
+    private var urlQueue: [QueuedFile] = []
     var editorShortcuts: [MonacoEditorAction] = []
     var monacoStateToRestore: String? = nil
 
@@ -565,10 +571,13 @@ class MainApp: ObservableObject {
 
     @MainActor
     func loadURLQueue() async {
-        for url in urlQueue {
-            _ = try? await openFile(url: url, alwaysInNewTab: true)
-        }
+        let queuedFiles = urlQueue
         urlQueue = []
+        for file in queuedFiles {
+            _ = try? await openFile(
+                url: file.url, alwaysInNewTab: true,
+                securityScopedAccess: file.securityScopedAccess)
+        }
     }
 
     func duplicateItem(at: URL) async throws {
@@ -1121,20 +1130,29 @@ class MainApp: ObservableObject {
         activeEditor = editor
     }
 
-    func openFile(url: URL, alwaysInNewTab: Bool = false) {
+    func openFile(
+        url: URL, alwaysInNewTab: Bool = false,
+        securityScopedAccess: WorkspaceAccess? = nil
+    ) {
         Task {
-            try await openFile(url: url, alwaysInNewTab: alwaysInNewTab)
+            try await openFile(
+                url: url, alwaysInNewTab: alwaysInNewTab,
+                securityScopedAccess: securityScopedAccess)
         }
     }
 
     @MainActor
     @discardableResult
-    func openFile(url: URL, alwaysInNewTab: Bool = false) async throws -> EditorInstance {
+    func openFile(
+        url: URL, alwaysInNewTab: Bool = false,
+        securityScopedAccess: WorkspaceAccess? = nil
+    ) async throws -> EditorInstance {
         guard stateManager.isMonacoEditorInitialized else {
-            if urlQueue.contains(url) {
-                urlQueue.removeAll { $0 == url }
-            }
-            urlQueue.append(url)
+            let previousAccess = urlQueue.first { $0.url == url }?.securityScopedAccess
+            urlQueue.removeAll { $0.url == url }
+            let access = securityScopedAccess?.isAccessing == true
+                ? securityScopedAccess : previousAccess
+            urlQueue.append(QueuedFile(url: url, securityScopedAccess: access))
             throw AppError.editorIsNotReady
         }
         var url = url.standardizedFileURL
@@ -1144,11 +1162,15 @@ class MainApp: ObservableObject {
             url = url.deletingLastPathComponent().appendingPathComponent(originalFileName)
         }
         if let existingEditor = try? openEditorForURL(url: url) {
+            if securityScopedAccess?.isAccessing == true {
+                existingEditor.securityScopedAccess = securityScopedAccess
+            }
             return existingEditor
         }
         // TODO: Avoid reading the same file twice
         do {
             let textEditor = try await createTextEditorFromURL(url: url)
+            textEditor.securityScopedAccess = securityScopedAccess
             appendAndFocusNewEditor(editor: textEditor, alwaysInNewTab: alwaysInNewTab)
             return textEditor
         } catch NSFileProviderError.serverUnreachable {
@@ -1156,6 +1178,7 @@ class MainApp: ObservableObject {
         } catch {
             // Otherwise, fallback to using extensions
             let editor = try createExtensionEditorFromURL(url: url)
+            editor.securityScopedAccess = securityScopedAccess
             appendAndFocusNewEditor(editor: editor, alwaysInNewTab: alwaysInNewTab)
             return editor
         }

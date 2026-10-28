@@ -51,6 +51,7 @@ final class CPPDebugger: NSObject, ObservableObject, WKNavigationDelegate, WKScr
     private let compilerQueue = DispatchQueue(label: "com.codeapp.cpp-debug-compiler", qos: .userInitiated)
     private weak var app: MainApp?
     private var sourceURL: URL?
+    private var sourceAccess: WorkspaceAccess?
     private var currentBreakpoints: [Int] = []
     private var revision = 0
     private var isWebViewReady = false
@@ -74,12 +75,14 @@ final class CPPDebugger: NSObject, ObservableObject, WKNavigationDelegate, WKScr
         revision += 1
         let thisRun = revision
         sourceURL = editor.url
+        sourceAccess = editor.securityScopedAccess
         output = ""
         variables = []
         currentLine = nil
         currentFile = nil
         state = .compiling
         let workspaceAccess = app.currentWorkspaceAccess
+        let fileAccess = sourceAccess
 
         Task { @MainActor in
             await app.saveCurrentFile()
@@ -95,7 +98,7 @@ final class CPPDebugger: NSObject, ObservableObject, WKNavigationDelegate, WKScr
             let binary = FileManager.default.temporaryDirectory
                 .appendingPathComponent("codeapp-debug-\(UUID().uuidString).wasm")
             self.compilerQueue.async {
-                defer { withExtendedLifetime(workspaceAccess) {} }
+                defer { withExtendedLifetime((workspaceAccess, fileAccess)) {} }
                 let result = Self.compile(source: source, binary: binary)
                 let data = result.status == 0 ? try? Data(contentsOf: binary) : nil
                 try? FileManager.default.removeItem(at: binary)
@@ -130,14 +133,17 @@ final class CPPDebugger: NSObject, ObservableObject, WKNavigationDelegate, WKScr
         state = .finished
         variables = []
         clearLine()
+        sourceAccess = nil
     }
 
     func restart() {
         guard state.isActive, let app, let sourceURL else { return }
+        let fileAccess = sourceAccess
         stop()
         Task { @MainActor in
             do {
-                let editor = try await app.openFile(url: sourceURL, alwaysInNewTab: true)
+                let editor = try await app.openFile(
+                    url: sourceURL, alwaysInNewTab: true, securityScopedAccess: fileAccess)
                 app.setActiveEditor(editor: editor)
                 await app.monacoInstance.setModel(url: sourceURL.absoluteString)
                 self.start(app: app)
@@ -236,10 +242,12 @@ final class CPPDebugger: NSObject, ObservableObject, WKNavigationDelegate, WKScr
             state = .finished
             variables = []
             clearLine()
+            sourceAccess = nil
         case "stopped":
             state = .finished
             variables = []
             clearLine()
+            sourceAccess = nil
         case "error":
             fail(body["message"] as? String ?? "Debugger failed.")
         default:
@@ -271,6 +279,7 @@ final class CPPDebugger: NSObject, ObservableObject, WKNavigationDelegate, WKScr
         state = .finished
         variables = []
         clearLine()
+        sourceAccess = nil
     }
 
     private static func compile(source: URL, binary: URL) -> (status: Int32, output: String) {

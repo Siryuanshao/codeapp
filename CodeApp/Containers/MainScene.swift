@@ -37,10 +37,10 @@ struct MainScene: View {
             return
         }
         rootDirectoryBookmark = rootDirBookmarkData
-        setOpenEditorsBookmarks(App.editorsWithURL.compactMap { try? $0.url.bookmarkData() })
+        setOpenEditorsBookmarks(App.editorsWithURL.compactMap { try? $0.bookmarkData() })
 
         if let activeEditor = App.activeTextEditor,
-            let activeEditorBookmarkData = try? activeEditor.url.bookmarkData()
+            let activeEditorBookmarkData = try? activeEditor.bookmarkData()
         {
             activeEditorBookmark = activeEditorBookmarkData
             Task {
@@ -54,8 +54,6 @@ struct MainScene: View {
 
     func restoreSceneState() {
 
-        var isStale = false
-
         guard stateRestorationEnabled else { return }
         guard let rootDirBookmark = rootDirectoryBookmark,
             let location = try? WorkspaceBookmark.resolve(rootDirBookmark)
@@ -65,17 +63,20 @@ struct MainScene: View {
         App.loadFolder(url: location.url, securityScopeURL: location.accessURL)
 
         let editors = getOpenEditorsBookmarks().compactMap {
-            try? URL(resolvingBookmarkData: $0, bookmarkDataIsStale: &isStale)
+            try? WorkspaceBookmark.resolve($0)
         }
         for editor in editors {
-            App.openFile(url: editor, alwaysInNewTab: true)
+            App.openFile(
+                url: editor.url, alwaysInNewTab: true,
+                securityScopedAccess: WorkspaceAccess(url: editor.accessURL))
         }
 
         if let activeEditorBookmark = activeEditorBookmark,
-            let activeEditor = try? URL(
-                resolvingBookmarkData: activeEditorBookmark, bookmarkDataIsStale: &isStale)
+            let activeEditor = try? WorkspaceBookmark.resolve(activeEditorBookmark)
         {
-            App.openFile(url: activeEditor)
+            App.openFile(
+                url: activeEditor.url,
+                securityScopedAccess: WorkspaceAccess(url: activeEditor.accessURL))
         }
 
         App.monacoStateToRestore = activeEditorMonacoState
@@ -96,8 +97,8 @@ struct MainScene: View {
                 App.extensionManager.initializeExtensions(app: App)
             }
             .onOpenURL { url in
-                _ = url.startAccessingSecurityScopedResource()
-                App.openFile(url: url)
+                let access = url.isFileURL ? WorkspaceAccess(url: url) : nil
+                App.openFile(url: url, securityScopedAccess: access)
             }
             .onReceive(
                 NotificationCenter.default.publisher(
@@ -295,8 +296,8 @@ private struct MainView: View {
         .sheet(isPresented: $directoryPickerManager.showsPicker) {
             DirectoryPickerView(
                 type: directoryPickerManager.type,
-                onOpen: { url in
-                    directoryPickerManager.callback?(url)
+                onOpen: { url, access in
+                    directoryPickerManager.callback?(url, access)
                 })
         }
         .sheet(isPresented: $createFileSheetManager.showsSheet) {

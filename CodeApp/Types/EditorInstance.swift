@@ -21,6 +21,7 @@ class EditorInstance: ObservableObject, Identifiable, Equatable, Hashable {
     @Published var title: String
     let id = UUID()
     var view: AnyView
+    var securityScopedAccess: WorkspaceAccess?
 
     init(view: AnyView, title: String) {
         self.view = view
@@ -58,6 +59,11 @@ class EditorInstanceWithURL: EditorInstance {
                 from: url.path.index(url.path.startIndex, offsetBy: lastMatchIndex + 37)))
     }
     var fileWatch: FolderMonitor?
+
+    func bookmarkData() throws -> Data {
+        try WorkspaceBookmark.make(
+            url: url, accessURL: securityScopedAccess?.url, isDirectory: false)
+    }
 
     init(view: AnyView, title: String, url: URL) {
         self.url = url

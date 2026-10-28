@@ -37,6 +37,7 @@ enum WorkspaceBookmark {
     private struct NestedBookmark: Codable {
         let bookmark: Data
         let relativePath: [String]
+        let isDirectory: Bool?
     }
 
     static func relativePath(from root: URL, to target: URL) -> [String]? {
@@ -47,14 +48,15 @@ enum WorkspaceBookmark {
         return Array(targetComponents.dropFirst(rootComponents.count))
     }
 
-    static func make(url: URL, accessURL: URL?) throws -> Data {
+    static func make(url: URL, accessURL: URL?, isDirectory: Bool = true) throws -> Data {
         guard let accessURL, let relativePath = relativePath(from: accessURL, to: url) else {
             return try url.bookmarkData()
         }
         let bookmark = try accessURL.bookmarkData()
         guard !relativePath.isEmpty else { return bookmark }
         return try PropertyListEncoder().encode(
-            NestedBookmark(bookmark: bookmark, relativePath: relativePath))
+            NestedBookmark(
+                bookmark: bookmark, relativePath: relativePath, isDirectory: isDirectory))
     }
 
     static func resolve(_ data: Data) throws -> WorkspaceLocation {
@@ -65,8 +67,11 @@ enum WorkspaceBookmark {
             options: .withoutImplicitStartAccessing,
             relativeTo: nil,
             bookmarkDataIsStale: &isStale)
-        let url = (nested?.relativePath ?? []).reduce(accessURL) {
-            $0.appendingPathComponent($1, isDirectory: true)
+        let relativePath = nested?.relativePath ?? []
+        let url = relativePath.enumerated().reduce(accessURL) { url, component in
+            let isDirectory =
+                component.offset < relativePath.count - 1 || (nested?.isDirectory ?? true)
+            return url.appendingPathComponent(component.element, isDirectory: isDirectory)
         }
         return WorkspaceLocation(url: url, accessURL: accessURL, isStale: isStale)
     }

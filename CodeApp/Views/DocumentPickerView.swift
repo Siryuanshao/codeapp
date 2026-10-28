@@ -45,11 +45,12 @@ struct DocumentPickerView: UIViewControllerRepresentable {
             _ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]
         ) {
             guard let url = urls.first else { return }
-            guard url.startAccessingSecurityScopedResource() else {
+            let access = WorkspaceAccess(url: url)
+            guard access.isAccessing else {
                 parent.App.notificationManager.showErrorMessage("Permission denied")
                 return
             }
-            parent.App.openFile(url: url)
+            parent.App.openFile(url: url, securityScopedAccess: access)
         }
     }
 }

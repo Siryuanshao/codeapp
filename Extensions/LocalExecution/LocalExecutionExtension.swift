@@ -113,6 +113,7 @@ class LocalExecutionExtension: CodeAppExtension {
                 ?? activeTextEditor.languageIdentifier
             activeTerminal.executeScript("localEcho.println(`\(commandName)`);readLine('');")
         }
-        executor.evaluateCommands(parsedCommands)
+        executor.evaluateCommands(
+            parsedCommands, securityScopedAccess: activeTextEditor.securityScopedAccess)
     }
 }

@@ -12,6 +12,7 @@ struct NewFileView: View {
     @EnvironmentObject var App: MainApp
 
     @State var targetUrl: String
+    @State private var targetAccess: WorkspaceAccess?
     @State private var name = ""
     @State private var directoryPickerIsPresented: Bool = false
     @FocusState private var filenameFieldIsFocused: Bool
@@ -152,6 +153,7 @@ struct NewFileView: View {
         }
 
         do {
+            let access = targetAccess
             guard let targetURL = URL(string: targetUrl)?.appendingPathComponent(name) else {
                 throw WorkSpaceStorage.FSError.UnableToFindASuitableName
             }
@@ -162,7 +164,7 @@ struct NewFileView: View {
                 at: destinationURL, content: content.data(using: .utf8)!, atomically: true,
                 overwrite: true
             )
-            try await App.openFile(url: destinationURL)
+            try await App.openFile(url: destinationURL, securityScopedAccess: access)
             self.presentationMode.wrappedValue.dismiss()
         } catch {
             App.notificationManager.showErrorMessage(error.localizedDescription)
@@ -253,8 +255,9 @@ struct NewFileView: View {
                         .sheet(isPresented: $directoryPickerIsPresented) {
                             DirectoryPickerView(
                                 type: .directory,
-                                onOpen: { url in
+                                onOpen: { url, access in
                                     targetUrl = url.absoluteString
+                                    targetAccess = access
                                 })
                         }
                     }

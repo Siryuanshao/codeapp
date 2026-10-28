@@ -27,8 +27,8 @@ struct EditorView: View {
 
     func onDropURL(url: URL) {
         // TODO: Determine whether file is directory
-        _ = url.startAccessingSecurityScopedResource()
-        App.openFile(url: url, alwaysInNewTab: true)
+        let access = url.isFileURL ? WorkspaceAccess(url: url) : nil
+        App.openFile(url: url, alwaysInNewTab: true, securityScopedAccess: access)
     }
 
     var body: some View {
@@ -68,7 +68,7 @@ struct EditorView: View {
                     .sheet(isPresented: $stateManager.showsDirectoryPicker) {
                         DirectoryPickerView(
                             type: .directory,
-                            onOpen: { url in
+                            onOpen: { url, _ in
                                 App.loadFolder(url: url)
                                 isSideBarVisible = true
                             },
