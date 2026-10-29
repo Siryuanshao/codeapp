@@ -302,14 +302,6 @@ final class CPPDebugger: NSObject, ObservableObject, WKNavigationDelegate, WKScr
         thread_stdin = nil
         thread_stdout = nil
         thread_stderr = nil
-        let compiler = source.pathExtension.lowercased() == "c" ? "clang" : "clang++"
-        let command = "\(compiler) -O0 -g -gdwarf-5 \(quote(source.path)) -o \(quote(binary.path))"
-        let pid = ios_fork()
-        _ = ios_system(command)
-        ios_waitpid(pid)
-        let status = ios_getCommandStatus()
-        ios_releaseThreadId(pid)
-
         func read(_ stream: UnsafeMutablePointer<FILE>) -> String {
             fflush(stream)
             rewind(stream)
@@ -317,11 +309,166 @@ final class CPPDebugger: NSObject, ObservableObject, WKNavigationDelegate, WKScr
                 .readDataToEndOfFile()
             return String(decoding: data, as: UTF8.self)
         }
+
+        func run(_ command: String) -> Int32 {
+            let pid = ios_fork()
+            _ = ios_system(command)
+            ios_waitpid(pid)
+            let status = ios_getCommandStatus()
+            ios_releaseThreadId(pid)
+            return status
+        }
+
+        let compiler = source.pathExtension.lowercased() == "c" ? "clang" : "clang++"
+        let object = binary.deletingPathExtension().appendingPathExtension("o")
+        defer { try? FileManager.default.removeItem(at: object) }
+        var status = run(
+            "\(compiler) -O0 -g -gdwarf-5 -c \(quote(source.path)) -o \(quote(object.path))")
+        if status == 0 {
+            do {
+                try DebugWasmObject.retainDataSymbols(in: object)
+                status = run(
+                    "\(compiler) -O0 -g -gdwarf-5 \(quote(object.path)) -o \(quote(binary.path))")
+            } catch {
+                let message = "\nUnable to preserve debug globals: \(error.localizedDescription)\n"
+                return (1, read(out) + read(err) + message)
+            }
+        }
         return (status, read(out) + read(err))
     }
 
     private static func quote(_ argument: String) -> String {
         "'" + argument.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+}
+
+// The WebAssembly linker removes unreferenced data even in a debug build. Mark
+// data symbols from the user's source as NO_STRIP before linking, so globals
+// remain inspectable without keeping every unused function in the standard library.
+private enum DebugWasmObject {
+    private struct InvalidObject: Error {}
+
+    static func retainDataSymbols(in object: URL) throws {
+        let bytes = Array(try Data(contentsOf: object))
+        var cursor = 8
+        while cursor < bytes.count {
+            let sectionStart = cursor
+            let sectionID = try byte(bytes, &cursor)
+            let size = try integer(bytes, &cursor)
+            let payloadStart = cursor
+            let sectionEnd = payloadStart + size
+            guard sectionEnd <= bytes.count else { throw InvalidObject() }
+            if sectionID == 0, try name(bytes, &cursor) == "linking" {
+                guard try integer(bytes, &cursor) == 2 else { throw InvalidObject() }
+                var payload = Array(bytes[payloadStart..<cursor])
+                var foundSymbols = false
+                while cursor < sectionEnd {
+                    let subsectionStart = cursor
+                    let subsectionID = try byte(bytes, &cursor)
+                    let subsectionSize = try integer(bytes, &cursor)
+                    let subsectionEnd = cursor + subsectionSize
+                    guard subsectionEnd <= sectionEnd else { throw InvalidObject() }
+                    if subsectionID == 8 {
+                        let symbols = try retainSymbols(bytes, start: cursor, end: subsectionEnd)
+                        payload.append(subsectionID)
+                        payload.append(contentsOf: encodedInteger(symbols.count))
+                        payload.append(contentsOf: symbols)
+                        foundSymbols = true
+                    } else {
+                        payload.append(contentsOf: bytes[subsectionStart..<subsectionEnd])
+                    }
+                    cursor = subsectionEnd
+                }
+                guard foundSymbols else { throw InvalidObject() }
+                var result = Array(bytes[..<sectionStart])
+                result.append(sectionID)
+                result.append(contentsOf: encodedInteger(payload.count))
+                result.append(contentsOf: payload)
+                result.append(contentsOf: bytes[sectionEnd...])
+                try Data(result).write(to: object)
+                return
+            }
+            cursor = sectionEnd
+        }
+        throw InvalidObject()
+    }
+
+    private static func retainSymbols(_ bytes: [UInt8], start: Int, end: Int) throws -> [UInt8] {
+        var cursor = start
+        let count = try integer(bytes, &cursor)
+        var result = Array(bytes[start..<cursor])
+        for _ in 0..<count {
+            let symbolStart = cursor
+            let kind = try byte(bytes, &cursor)
+            let flagsStart = cursor
+            let flags = try integer(bytes, &cursor)
+            let flagsEnd = cursor
+            let undefined = flags & 0x10 != 0
+            switch kind {
+            case 1:  // Data: name, then segment, offset and size when defined.
+                _ = try name(bytes, &cursor)
+                if !undefined {
+                    if flags & 3 == 3 {  // Common symbols have size and alignment instead.
+                        _ = try integer(bytes, &cursor)
+                        _ = try byte(bytes, &cursor)
+                    } else {
+                        _ = try integer(bytes, &cursor)
+                        _ = try integer(bytes, &cursor)
+                        _ = try integer(bytes, &cursor)
+                    }
+                }
+            case 0, 2, 4, 5:  // Function, global, tag or table.
+                _ = try integer(bytes, &cursor)
+                if !undefined || flags & 0x40 != 0 { _ = try name(bytes, &cursor) }
+            case 3:  // Section.
+                _ = try integer(bytes, &cursor)
+            default:
+                throw InvalidObject()
+            }
+            guard cursor <= end else { throw InvalidObject() }
+            result.append(contentsOf: bytes[symbolStart..<flagsStart])
+            let retainedFlags = kind == 1 && !undefined ? flags | 0x80 : flags
+            result.append(contentsOf: encodedInteger(retainedFlags))
+            result.append(contentsOf: bytes[flagsEnd..<cursor])
+        }
+        guard cursor == end else { throw InvalidObject() }
+        return result
+    }
+
+    private static func byte(_ bytes: [UInt8], _ cursor: inout Int) throws -> UInt8 {
+        guard cursor < bytes.count else { throw InvalidObject() }
+        defer { cursor += 1 }
+        return bytes[cursor]
+    }
+
+    private static func integer(_ bytes: [UInt8], _ cursor: inout Int) throws -> Int {
+        var result = 0
+        for shift in stride(from: 0, through: 28, by: 7) {
+            let part = try byte(bytes, &cursor)
+            result |= Int(part & 0x7f) << shift
+            if part & 0x80 == 0 { return result }
+        }
+        throw InvalidObject()
+    }
+
+    private static func name(_ bytes: [UInt8], _ cursor: inout Int) throws -> String {
+        let size = try integer(bytes, &cursor)
+        let end = cursor + size
+        guard end <= bytes.count else { throw InvalidObject() }
+        defer { cursor = end }
+        return String(decoding: bytes[cursor..<end], as: UTF8.self)
+    }
+
+    private static func encodedInteger(_ value: Int) -> [UInt8] {
+        var value = value
+        var result: [UInt8] = []
+        repeat {
+            var part = UInt8(value & 0x7f)
+            value >>= 7
+            if value != 0 { part |= 0x80 }
+            result.append(part)
+        } while value != 0
+        return result
     }
 }
 

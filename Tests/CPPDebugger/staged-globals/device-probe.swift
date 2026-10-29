@@ -71,6 +71,9 @@ private struct GlobalsProbeView: View {
             const unsigned BIG = 4000000000U;
             constexpr bool FLAG = true;
             int count = 3;
+            int unusedNumber = 111;
+            char unusedChars[140];
+            int unusedArray[160];
             int a[MAXN];
             int small[3] = {10, 20, 30};
             int medium[150];
@@ -98,6 +101,9 @@ private struct GlobalsProbeView: View {
             """#
             let line = try await startSource("globals-probe.cpp", cpp)
             try check("count", "Globals", "5")
+            try check("unusedNumber", "Globals", "111")
+            try check("unusedChars", "Globals", "size = 140")
+            try check("unusedArray", "Globals", "size = 160")
             try check("MAXN", "Globals", "1000")
             try check("NEG", "Globals", "-150")
             try check("BIG", "Globals", "4000000000")
@@ -141,6 +147,9 @@ private struct GlobalsProbeView: View {
 
             let c = #"""
             int count = 3;
+            int unusedNumber = 111;
+            char unusedChars[140];
+            int unusedArray[160];
             int a[1000];
             int small[3] = {10, 20, 30};
             int main(void) {
@@ -152,6 +161,9 @@ private struct GlobalsProbeView: View {
             """#
             _ = try await startSource("globals-probe.c", c)
             try check("count", "Globals", "5")
+            try check("unusedNumber", "Globals", "111")
+            try check("unusedChars", "Globals", "size = 140")
+            try check("unusedArray", "Globals", "size = 160")
             try check("local", "Locals", "42")
             try check("a", "Globals", "size = 1000")
             let cSmall = try find("small", "Globals")
@@ -160,6 +172,43 @@ private struct GlobalsProbeView: View {
                 (try? find("small", "Globals").children.map(\.value)) == ["10", "20", "30"]
             }
             NSLog("GLOBALS_PROBE C PASS")
+            app.cppDebugger.stop()
+
+            let cppWithContainers = #"""
+            #include <iostream>
+            #include <thread>
+            #include <chrono>
+            #include <algorithm>
+            #include <queue>
+            #include <stack>
+            using namespace std;
+            struct Person { int age; int height; };
+            int abcd = 111;
+            string sbsb = "1212";
+            char x[140];
+            int xyz[160];
+            int main() {
+              string str = "a local string";
+              int a[1213] = {0, 1, 2, 3};
+              int b[11] = {1, 1, 1, 1};
+              priority_queue<int> que;
+              vector<int> vec;
+              vec.push_back(1);
+              vec.push_back(2);
+              Person person;
+              person.age = 1; // BREAK
+              return person.age;
+            }
+            """#
+            _ = try await startSource("globals-with-containers.cpp", cppWithContainers)
+            try check("abcd", "Globals", "111")
+            try check("sbsb", "Globals", "\"1212\"")
+            try check("x", "Globals", "size = 140")
+            try check("xyz", "Globals", "size = 160")
+            try check("a", "Locals", "size = 1213")
+            try check("que", "Locals", "size = 0")
+            try check("vec", "Locals", "size = 2")
+            NSLog("GLOBALS_PROBE C++ CONTAINERS PASS")
             app.cppDebugger.stop()
             NSLog("GLOBALS_PROBE ALL PASS")
             exit(0)
