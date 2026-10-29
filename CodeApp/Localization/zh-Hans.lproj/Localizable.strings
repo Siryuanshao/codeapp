@@ -682,6 +682,10 @@
 "debug.restart" = "重新开始调试";
 "debug.stop" = "停止调试";
 "debug.variables" = "变量";
+"debug.local_variables" = "局部变量";
+"debug.global_variables" = "全局变量";
+"debug.expanded" = "已展开";
+"debug.collapsed" = "已折叠";
 "debug.load_more" = "加载更多";
 "debug.variable_unavailable" = "无法读取成员";
 "debug.output" = "输出";

@@ -8,6 +8,7 @@ struct CPPDebugVariable: Identifiable {
     let name: String
     let value: String
     let type: String
+    let isGlobal: Bool
     let reference: Int
     let expanded: Bool
     let children: [CPPDebugVariable]
@@ -22,6 +23,7 @@ struct CPPDebugVariable: Identifiable {
         self.name = name
         self.value = value
         type = data["type"] as? String ?? ""
+        isGlobal = (data["path"] as? [String])?.dropFirst().first == "Globals"
         reference = data["reference"] as? Int ?? 0
         expanded = data["expanded"] as? Bool ?? false
         children = (data["children"] as? [[String: Any]] ?? []).compactMap(CPPDebugVariable.init)
@@ -47,6 +49,8 @@ final class CPPDebugger: NSObject, ObservableObject, WKNavigationDelegate, WKScr
     @Published private(set) var variables: [CPPDebugVariable] = []
     @Published private(set) var currentLine: Int?
     @Published private(set) var currentFile: String?
+    @Published var localsExpanded = true
+    @Published var globalsExpanded = false
 
     private let compilerQueue = DispatchQueue(label: "com.codeapp.cpp-debug-compiler", qos: .userInitiated)
     private weak var app: MainApp?
@@ -80,6 +84,8 @@ final class CPPDebugger: NSObject, ObservableObject, WKNavigationDelegate, WKScr
         variables = []
         currentLine = nil
         currentFile = nil
+        localsExpanded = true
+        globalsExpanded = false
         state = .compiling
         let workspaceAccess = app.currentWorkspaceAccess
         let fileAccess = sourceAccess
@@ -602,7 +608,18 @@ struct CPPDebugPanel: View {
                     Text("debug.variables").bold()
                     ScrollView {
                         VStack(alignment: .leading, spacing: 3) {
-                            CPPDebugVariableTree(debugger: debugger, variables: debugger.variables)
+                            let locals = debugger.variables.filter { !$0.isGlobal }
+                            let globals = debugger.variables.filter(\.isGlobal)
+                            if !locals.isEmpty {
+                                CPPDebugVariableGroup(
+                                    debugger: debugger, title: "debug.local_variables",
+                                    isExpanded: $debugger.localsExpanded, variables: locals)
+                            }
+                            if !globals.isEmpty {
+                                CPPDebugVariableGroup(
+                                    debugger: debugger, title: "debug.global_variables",
+                                    isExpanded: $debugger.globalsExpanded, variables: globals)
+                            }
                         }.frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }.frame(minWidth: 120, maxWidth: .infinity, alignment: .leading)
@@ -643,6 +660,38 @@ struct CPPDebugPanel: View {
     private func sendInput() {
         debugger.sendInput(input)
         input = ""
+    }
+}
+
+private struct CPPDebugVariableGroup: View {
+    @ObservedObject var debugger: CPPDebugger
+    let title: LocalizedStringKey
+    @Binding var isExpanded: Bool
+    let variables: [CPPDebugVariable]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                isExpanded.toggle()
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .frame(width: 24, height: 28)
+                        .accessibilityHidden(true)
+                    Text(title).font(.caption.weight(.semibold))
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityValue(isExpanded ? Text("debug.expanded") : Text("debug.collapsed"))
+
+            if isExpanded {
+                CPPDebugVariableTree(debugger: debugger, variables: variables)
+                    .padding(.leading, 14)
+            }
+        }
     }
 }
 

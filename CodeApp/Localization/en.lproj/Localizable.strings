@@ -584,6 +584,10 @@ are licensed under [BSD-3-Clause License](https://en.wikipedia.org/wiki/BSD_lice
 "debug.restart" = "Restart Debugging";
 "debug.stop" = "Stop Debugging";
 "debug.variables" = "Variables";
+"debug.local_variables" = "Local";
+"debug.global_variables" = "Global";
+"debug.expanded" = "Expanded";
+"debug.collapsed" = "Collapsed";
 "debug.load_more" = "Load more";
 "debug.variable_unavailable" = "Unable to read members";
 "debug.output" = "Output";

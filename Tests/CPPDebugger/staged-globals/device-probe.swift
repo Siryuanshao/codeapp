@@ -110,6 +110,10 @@ private struct GlobalsProbeView: View {
             try check("FLAG", "Globals", "true")
             try check("count", "Locals", "17")
             try check("local", "Locals", "42")
+            guard app.cppDebugger.localsExpanded, !app.cppDebugger.globalsExpanded,
+                  try !find("count", "Locals").isGlobal, try find("count", "Globals").isGlobal else {
+                throw failure("Default group state or variable scopes are incorrect")
+            }
             try check("a", "Globals", "size = 1000")
             try check("medium", "Globals", "size = 150")
             try check("aliasArray", "Globals", "size = 150")
@@ -135,8 +139,13 @@ private struct GlobalsProbeView: View {
             try await waitUntil("matrix row values") {
                 (try? find("matrix", "Globals").children[1].children.map(\.value)) == ["4", "5", "6"]
             }
+            app.cppDebugger.localsExpanded = false
+            app.cppDebugger.globalsExpanded = true
             app.cppDebugger.command("next")
             try await waitUntil("step one") { app.cppDebugger.state == .paused && app.cppDebugger.currentLine == line + 1 }
+            guard !app.cppDebugger.localsExpanded, app.cppDebugger.globalsExpanded else {
+                throw failure("Group expansion did not persist after stepping")
+            }
             try check("local", "Locals", "43")
             try check("count", "Globals", "5")
             app.cppDebugger.command("next")
@@ -160,6 +169,9 @@ private struct GlobalsProbeView: View {
             }
             """#
             _ = try await startSource("globals-probe.c", c)
+            guard app.cppDebugger.localsExpanded, !app.cppDebugger.globalsExpanded else {
+                throw failure("Group expansion did not reset for the next debug session")
+            }
             try check("count", "Globals", "5")
             try check("unusedNumber", "Globals", "111")
             try check("unusedChars", "Globals", "size = 140")
@@ -187,7 +199,7 @@ private struct GlobalsProbeView: View {
             string sbsb = "1212";
             char x[140];
             int xyz[160];
-            int main() {
+            int main(int argc, char **argv) {
               string str = "a local string";
               int a[1213] = {0, 1, 2, 3};
               int b[11] = {1, 1, 1, 1};
@@ -208,6 +220,9 @@ private struct GlobalsProbeView: View {
             try check("a", "Locals", "size = 1213")
             try check("que", "Locals", "size = 0")
             try check("vec", "Locals", "size = 2")
+            guard try !find("argc", "Arguments").isGlobal else {
+                throw failure("Function arguments must appear with local variables")
+            }
             NSLog("GLOBALS_PROBE C++ CONTAINERS PASS")
             app.cppDebugger.stop()
             NSLog("GLOBALS_PROBE ALL PASS")
