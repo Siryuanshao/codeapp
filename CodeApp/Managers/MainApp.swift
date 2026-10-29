@@ -980,7 +980,8 @@ class MainApp: ObservableObject {
                     return false
                 }
                 // We do not have a stable identity of a url due to sandboxing, compare lastPathComponent instead
-                return (location.url.lastPathComponent != url.lastPathComponent && !location.isStale)
+                return
+                    (location.url.lastPathComponent != url.lastPathComponent && !location.isStale)
             }
             bookmarks = [newBookmark] + bookmarks
             if bookmarks.count > 5 {
@@ -1157,7 +1158,8 @@ class MainApp: ObservableObject {
         guard stateManager.isMonacoEditorInitialized else {
             let previousAccess = urlQueue.first { $0.url == url }?.securityScopedAccess
             urlQueue.removeAll { $0.url == url }
-            let access = securityScopedAccess?.isAccessing == true
+            let access =
+                securityScopedAccess?.isAccessing == true
                 ? securityScopedAccess : previousAccess
             urlQueue.append(QueuedFile(url: url, securityScopedAccess: access))
             throw AppError.editorIsNotReady

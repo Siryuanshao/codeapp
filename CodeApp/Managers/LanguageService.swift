@@ -57,7 +57,8 @@ final class ClangCompletionService {
             self.lock.lock()
             let isLatest = self.latestRequests[client] == request
             self.lock.unlock()
-            let results = isLatest
+            let results =
+                isLatest
                 ? self.runClang(source: source, url: url, line: line, column: column) : []
             DispatchQueue.main.async { completion(results) }
         }
@@ -99,7 +100,8 @@ final class ClangCompletionService {
         thread_stderr = nil
         let location = "-code-completion-at=\(snapshot.path):\(line):\(column)"
         let compiler = isC ? "clang" : "clang++"
-        let command = "\(compiler) -fsyntax-only -Xclang \(shellQuote(location)) "
+        let command =
+            "\(compiler) -fsyntax-only -Xclang \(shellQuote(location)) "
             + "-iquote \(shellQuote(url.deletingLastPathComponent().path)) \(shellQuote(snapshot.path))"
         let pid = ios_fork()
         _ = ios_system(command)
@@ -108,7 +110,8 @@ final class ClangCompletionService {
 
         fflush(output)
         rewind(output)
-        let data = FileHandle(fileDescriptor: fileno(output), closeOnDealloc: false).readDataToEndOfFile()
+        let data = FileHandle(fileDescriptor: fileno(output), closeOnDealloc: false)
+            .readDataToEndOfFile()
         return Self.parse(String(decoding: data, as: UTF8.self))
     }
 
