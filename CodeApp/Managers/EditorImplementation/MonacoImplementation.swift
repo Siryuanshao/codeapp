@@ -47,9 +47,58 @@ extension WKWebView {
     }
 }
 
+final class CPPBreakpointStore {
+    private let defaults: UserDefaults
+    private let key = "cppDebugBreakpoints"
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+    }
+
+    func workspace(for file: URL, root: URL?) -> String {
+        guard let root, WorkspaceBookmark.relativePath(from: root, to: file) != nil else {
+            return ""
+        }
+        return root.standardizedFileURL.path
+    }
+
+    func lines(for file: URL, workspace: String) -> [Int] {
+        let workspaces = defaults.dictionary(forKey: key) as? [String: [String: [Int]]] ?? [:]
+        return workspaces[workspace]?[file.standardizedFileURL.path] ?? []
+    }
+
+    func save(_ lines: [Int], for file: URL, workspace: String) {
+        var workspaces = defaults.dictionary(forKey: key) as? [String: [String: [Int]]] ?? [:]
+        let path = file.standardizedFileURL.path
+        var files = workspaces[workspace] ?? [:]
+        guard (files[path] ?? []) != lines else { return }
+        files[path] = lines.isEmpty ? nil : lines
+        workspaces[workspace] = files.isEmpty ? nil : files
+        defaults.set(workspaces, forKey: key)
+    }
+
+    func remove(at url: URL) {
+        let deletedPath = url.standardizedFileURL.pathComponents
+        var workspaces = defaults.dictionary(forKey: key) as? [String: [String: [Int]]] ?? [:]
+        var changed = false
+        for (workspace, files) in workspaces {
+            let remaining = files.filter { path, _ in
+                !URL(fileURLWithPath: path).standardizedFileURL.pathComponents.starts(with: deletedPath)
+            }
+            if remaining.count != files.count {
+                changed = true
+                workspaces[workspace] = remaining.isEmpty ? nil : remaining
+            }
+        }
+        if changed { defaults.set(workspaces, forKey: key) }
+    }
+}
+
 class MonacoImplementation: NSObject {
     private var monacoWebView = WebViewBase()
     private let completionClient = UUID()
+    private let breakpointStore = CPPBreakpointStore()
+    weak var app: MainApp?
     weak var cppDebugger: CPPDebugger?
     var options: EditorOptions {
         didSet {
@@ -247,6 +296,17 @@ class MonacoImplementation: NSObject {
         _ = try? await monacoWebView.evaluateJavaScriptAsync(
             "codeAppDebugShowLine(decodeURIComponent(escape(atob('\(uri)'))), \(line))")
     }
+
+    func removeSavedBreakpoints(at url: URL) {
+        guard url.isFileURL,
+            let encodedURL = url.standardizedFileURL.absoluteString.base64Encoded()
+        else { return }
+        breakpointStore.remove(at: url)
+        Task { @MainActor in
+            _ = try? await monacoWebView.evaluateJavaScriptAsync(
+                "codeAppDebugForgetBreakpoints(decodeURIComponent(escape(atob('\(encodedURL)'))))")
+        }
+    }
 }
 
 extension MonacoImplementation: WKScriptMessageHandlerWithReply {
@@ -283,10 +343,15 @@ extension MonacoImplementation: WKScriptMessageHandler {
 
         switch event {
         case "C++ Breakpoints Changed":
-            guard let uri = result["URI"] as? String, let lines = result["lines"] as? [Int] else {
+            guard let uri = result["URI"] as? String, let url = URL(string: uri), url.isFileURL,
+                let workspace = result["workspace"] as? String,
+                let lines = result["lines"] as? [Int] else {
                 return
             }
-            cppDebugger?.breakpointsChanged(uri: uri, lines: lines)
+            breakpointStore.save(lines, for: url, workspace: workspace)
+            if result["reason"] as? String == "toggle" {
+                cppDebugger?.breakpointsChanged(uri: uri, lines: lines)
+            }
         case "focus":
             delegate?.didEnterFocus()
         case "Request Diff Update":
@@ -367,8 +432,22 @@ extension MonacoImplementation: EditorImplementation {
         else {
             return
         }
+        var restore = ""
+        if let file = URL(string: url), file.isFileURL {
+            let root = app?.currentWorkspaceBookmarkURL ?? app?.workSpaceStorage.currentDirectory._url
+            let workspace = breakpointStore.workspace(for: file, root: root)
+            if let encodedWorkspace = workspace.base64Encoded() {
+                let lines = breakpointStore.lines(for: file, workspace: workspace)
+                let lineValues = lines.map(String.init).joined(separator: ",")
+                restore = """
+                    codeAppDebugRestoreBreakpoints(
+                        decodeURIComponent(escape(atob('\(encodedUrl)'))), [\(lineValues)],
+                        decodeURIComponent(escape(atob('\(encodedWorkspace)'))));
+                    """
+            }
+        }
         _ = try? await monacoWebView.evaluateJavaScriptAsync(
-            "onRequestNewTextModel('\(encodedUrl)', '\(encodedContent)')"
+            "onRequestNewTextModel('\(encodedUrl)', '\(encodedContent)'); \(restore)"
         )
     }
 

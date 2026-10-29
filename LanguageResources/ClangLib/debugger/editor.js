@@ -20,18 +20,34 @@
   `;
   document.head.appendChild(style);
 
-  const decorations = new Map();
+  const states = new WeakMap();
   let execution = null;
+  let updatingDecorations = false;
 
-  function linesFor(model) {
-    const ids = decorations.get(model.uri.toString()) || [];
-    return ids.map(id => model.getDecorationRange(id)?.startLineNumber)
-      .filter(line => line !== undefined);
+  function stateFor(model) {
+    let state = states.get(model);
+    if (!state) {
+      state = { ids: [], lastLines: [], workspace: "", restored: false };
+      states.set(model, state);
+    }
+    return state;
   }
 
-  function notify(model) {
+  function linesFor(model) {
+    const lines = stateFor(model).ids.map(id => model.getDecorationRange(id)?.startLineNumber)
+      .filter(line => line !== undefined);
+    return [...new Set(lines)].sort((a, b) => a - b);
+  }
+
+  function notify(model, reason) {
+    const state = stateFor(model);
+    const lines = linesFor(model);
+    if (lines.length === state.lastLines.length &&
+        lines.every((line, index) => line === state.lastLines[index])) return;
+    state.lastLines = lines;
     window.webkit.messageHandlers.toggleMessageHandler.postMessage({
-      Event: "C++ Breakpoints Changed", URI: model.uri.toString(), lines: linesFor(model),
+      Event: "C++ Breakpoints Changed", URI: model.uri.toString(),
+      workspace: state.workspace, lines, reason,
     });
   }
 
@@ -41,16 +57,22 @@
   }
 
   function showBreakpoints(model, lines) {
-    const uri = model.uri.toString();
+    const state = stateFor(model);
     const pausedLine = pausedLineFor(model);
     const items = lines.map(number => ({
       range: new monaco.Range(number, 1, number, 1),
       options: {
         isWholeLine: true,
+        stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
         glyphMarginClassName: number === pausedLine ? "" : "codeapp-breakpoint",
       },
     }));
-    decorations.set(uri, model.deltaDecorations(decorations.get(uri) || [], items));
+    updatingDecorations = true;
+    try {
+      state.ids = model.deltaDecorations(state.ids, items);
+    } finally {
+      updatingDecorations = false;
+    }
   }
 
   function showExecution() {
@@ -59,14 +81,19 @@
     const line = pausedLineFor(model);
     const hasBreakpoint = linesFor(model).includes(line);
     execution.line = line;
-    execution.ids = model.deltaDecorations(execution.ids, [{
-      range: new monaco.Range(line, 1, line, 1),
-      options: {
-        isWholeLine: true,
-        className: "codeapp-debug-line",
-        glyphMarginClassName: hasBreakpoint ? "codeapp-debug-arrow-breakpoint" : "codeapp-debug-arrow",
-      },
-    }]);
+    updatingDecorations = true;
+    try {
+      execution.ids = model.deltaDecorations(execution.ids, [{
+        range: new monaco.Range(line, 1, line, 1),
+        options: {
+          isWholeLine: true,
+          className: "codeapp-debug-line",
+          glyphMarginClassName: hasBreakpoint ? "codeapp-debug-arrow-breakpoint" : "codeapp-debug-arrow",
+        },
+      }]);
+    } finally {
+      updatingDecorations = false;
+    }
   }
 
   function toggleBreakpoint(line) {
@@ -77,8 +104,13 @@
     if (index < 0) lines.push(line); else lines.splice(index, 1);
     showBreakpoints(model, lines);
     if (execution?.model === model) showExecution();
-    notify(model);
+    notify(model, "toggle");
   }
+
+  editor.onDidChangeModelDecorations(() => {
+    const model = editor.getModel();
+    if (model && !updatingDecorations) notify(model, "move");
+  });
 
   editor.onMouseDown(event => {
     if (event.target.type !== monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN) return;
@@ -86,6 +118,28 @@
   });
 
   window.codeAppDebugToggleBreakpoint = toggleBreakpoint;
+
+  window.codeAppDebugRestoreBreakpoints = (uri, lines, workspace) => {
+    const model = monaco.editor.getModel(monaco.Uri.parse(uri));
+    if (!model) return;
+    const state = stateFor(model);
+    if (state.restored) return;
+    state.restored = true;
+    state.workspace = workspace;
+    showBreakpoints(model, lines);
+    state.lastLines = linesFor(model);
+  };
+
+  window.codeAppDebugForgetBreakpoints = uri => {
+    const path = monaco.Uri.parse(uri).path.replace(/\/$/, "");
+    for (const model of monaco.editor.getModels()) {
+      if (model.uri.scheme !== "file" ||
+          (model.uri.path !== path && !model.uri.path.startsWith(path + "/"))) continue;
+      showBreakpoints(model, []);
+      stateFor(model).lastLines = [];
+      if (execution?.model === model) showExecution();
+    }
+  };
 
   window.codeAppDebugBreakpoints = () => {
     const model = editor.getModel();

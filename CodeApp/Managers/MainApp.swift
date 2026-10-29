@@ -329,6 +329,7 @@ class MainApp: ObservableObject {
                 options: editorOptions.value,
                 theme: EditorTheme(dark: ThemeManager.darkTheme, light: ThemeManager.lightTheme))
             (monacoInstance as? MonacoImplementation)?.cppDebugger = cppDebugger
+            (monacoInstance as? MonacoImplementation)?.app = self
         }
         monacoInstance.delegate = self
         for textEditor in textEditors {
@@ -619,6 +620,7 @@ class MainApp: ObservableObject {
     }
 
     func trashItem(url: URL) {
+        let breakpointURL = url.isFileURL ? url.standardizedFileURL : url
         func removeItem() {
             self.workSpaceStorage.removeItem(at: url) { error in
                 if let error = error {
@@ -626,8 +628,13 @@ class MainApp: ObservableObject {
                         error.localizedDescription)
                     return
                 }
-                if let editorToTrash = self.textEditors.first(where: { $0.url == url }) {
-                    Task { @MainActor in
+                Task { @MainActor in
+                    if let monaco = self.monacoInstance as? MonacoImplementation {
+                        monaco.removeSavedBreakpoints(at: breakpointURL)
+                    } else if breakpointURL.isFileURL {
+                        CPPBreakpointStore().remove(at: breakpointURL)
+                    }
+                    if let editorToTrash = self.textEditors.first(where: { $0.url == url }) {
                         self.closeEditor(editor: editorToTrash)
                     }
                 }
