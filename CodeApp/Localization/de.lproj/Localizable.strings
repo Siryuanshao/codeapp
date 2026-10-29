@@ -7,8 +7,8 @@
 */
 
 "Welcome Message" =
-"# Code App
-##### **v1.12.3 (September 2026)**
+"# Codelet
+##### **v1.13.0**
 #### Start
 [Neue Datei](https://thebaselab.com/code/newfile)
 [Datei öffnen](https://thebaselab.com/code/openfile)
@@ -23,6 +23,11 @@
 
 "Changelog.message" =
 "
+### 1.13.0
+- In Codelet umbenannt und das App-Symbol aktualisiert.
+- C/C++-Codevervollständigung und Debugging mit Haltepunkten und globalen Variablen hinzugefügt.
+- Terminal und Ordnerzugriff verbessert.
+
 ### 1.12.3 (September 2026)
 - Behebt die Sichtbarkeit der türkischen Sprache in den Einstellungen
 - Verbesserte Kompatibilität mit iOS 27
@@ -546,6 +551,9 @@
 "errors.fs.invalid_host" = "Ungültiger Hostname.";
 "errors.fs.unsupported_encoding" = "Nicht unterstützte Zeichenkodierung.";
 "errors.fs.unknown" = "Unbekannter Fehler.";
+"errors.fs.directory_unavailable" = "Dieser Ordner kann nicht gelesen werden.";
+"errors.fs.reselect_folder" = "Um den Zugriff wiederherzustellen, wählen Sie „Ordner öffnen“ und wählen Sie diesen Ordner erneut aus.";
+"terminal.directory_unavailable" = "Der Ordner %@ kann nicht geöffnet werden. Öffnen Sie ihn erneut.";
 "errors.fs.connection_failure" = "Verbindungsfehler.";
 "errors.fs.authentication_failure" = "Authentifizierungsfehler.";
 "errors.fs.attempting_to_copy_parent_to_child" = "Versuch, ein Verzeichnis in sich selbst zu kopieren.";
@@ -673,6 +681,34 @@
 "panel.execution.title" = "Ausführung";
 
 "local.execution.title" = "Lokale Ausführung";
+"terminal.process.exited" = "Programm mit Code %d beendet.";
+"terminal.process.stopped" = "Programm gestoppt.";
+"CPP_DEBUG" = "Debuggen";
+"debug.idle" = "Tippen Sie auf den Rand neben der Zeilennummer, um einen Haltepunkt zu setzen, und starten Sie dann das Debugging.";
+"debug.compiling" = "Wird kompiliert…";
+"debug.starting" = "Debugger wird gestartet…";
+"debug.running" = "Wird ausgeführt";
+"debug.paused" = "Pausiert";
+"debug.finished" = "Debugging beendet";
+"debug.continue" = "Fortsetzen";
+"debug.step_over" = "Prozedurschritt";
+"debug.step_in" = "Einzelschritt";
+"debug.step_out" = "Schritt heraus";
+"debug.restart" = "Debugging neu starten";
+"debug.stop" = "Debugging stoppen";
+"debug.variables" = "Variablen";
+"debug.local_variables" = "Lokal";
+"debug.global_variables" = "Global";
+"debug.expanded" = "Aufgeklappt";
+"debug.collapsed" = "Zugeklappt";
+"debug.load_more" = "Mehr laden";
+"debug.variable_unavailable" = "Mitglieder können nicht gelesen werden";
+"debug.output" = "Ausgabe";
+"debug.input" = "Programmeingabe";
+"debug.send" = "Senden";
+"debug.save_failed" = "Die aktuelle Datei konnte nicht gespeichert werden.";
+"debug.compile_failed" = "Kompilierung für das Debugging fehlgeschlagen.";
+"debug.temporary_filesystem" = "Dateien, auf die das debugte Programm zugreift, sind temporär.";
 
 "remote.setup_remote_server" = "Dokumentation zur Fernzugriffsfunktion";
 "remote.private_key_content" = "Inhalt des privaten Schlüssels";

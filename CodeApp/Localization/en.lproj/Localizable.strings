@@ -7,8 +7,8 @@
 */
 
 "Welcome Message" =
-"# Code App
-##### **v1.12.3 (September 2026)**
+"# Codelet
+##### **v1.13.0**
 #### Start
 [New file](https://thebaselab.com/code/newfile)
 [Open file](https://thebaselab.com/code/openfile)
@@ -23,6 +23,11 @@
 
 "Changelog.message" =
 "
+### 1.13.0
+- Renamed the app to Codelet with a new icon.
+- Added C/C++ code completion and breakpoint debugging, including global variables.
+- Improved the terminal and folder access.
+
 ### 1.12.3 (September 2026)
 - Fixed Turkish language visibility in Settings
 - Improves compatibility with iOS 27

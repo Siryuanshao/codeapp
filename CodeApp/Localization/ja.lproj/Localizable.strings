@@ -7,8 +7,8 @@
 */
 
 "Welcome Message" =
-"# Code App
-##### **v1.12.3 (2026 年 9 月)**
+"# Codelet
+##### **v1.13.0**
 #### 開始
 [新しいファイル](https://thebaselab.com/code/newfile)
 [ファイルを開く](https://thebaselab.com/code/openfile)
@@ -23,6 +23,11 @@
 
 "Changelog.message" =
 "
+### 1.13.0
+- アプリ名を Codelet に変更し、アイコンを更新しました。
+- C/C++ のコード補完とブレークポイントによるデバッグに対応し、グローバル変数を表示できるようになりました。
+- ターミナルとフォルダーへのアクセスを改善しました。
+
 ### 1.12.3 (2026 年 9 月)
 - 設定でトルコ語が表示されない問題を修正
 - iOS 27 との互換性を改善
@@ -547,6 +552,9 @@
 "errors.fs.invalid_host" = "無効なホスト";
 "errors.fs.unsupported_encoding" = "サポートされていないエンコードです";
 "errors.fs.unknown" = "不明なエラー";
+"errors.fs.directory_unavailable" = "このフォルダーを読み取れません。";
+"errors.fs.reselect_folder" = "アクセスを回復するには、「フォルダーを開く」を選び、このフォルダーをもう一度選択してください。";
+"terminal.directory_unavailable" = "フォルダー「%@」を開けません。もう一度開いてください。";
 "errors.fs.connection_failure" = "接続に失敗しました";
 "errors.fs.authentication_failure" = "認証に失敗しました";
 "errors.fs.attempting_to_copy_parent_to_child" = "ソースはターゲットの親です。";
@@ -673,6 +681,34 @@
 "panel.execution.title" = "実行";
 
 "local.execution.title" = "ローカル実行";
+"terminal.process.exited" = "プログラムが終了しました。終了コード: %d";
+"terminal.process.stopped" = "プログラムを停止しました。";
+"CPP_DEBUG" = "デバッグ";
+"debug.idle" = "行番号の横の余白をタップしてブレークポイントを設定し、デバッグを開始してください。";
+"debug.compiling" = "コンパイル中…";
+"debug.starting" = "デバッガーを起動中…";
+"debug.running" = "実行中";
+"debug.paused" = "一時停止中";
+"debug.finished" = "デバッグ終了";
+"debug.continue" = "続行";
+"debug.step_over" = "ステップオーバー";
+"debug.step_in" = "ステップイン";
+"debug.step_out" = "ステップアウト";
+"debug.restart" = "デバッグを再起動";
+"debug.stop" = "デバッグを停止";
+"debug.variables" = "変数";
+"debug.local_variables" = "ローカル変数";
+"debug.global_variables" = "グローバル変数";
+"debug.expanded" = "展開済み";
+"debug.collapsed" = "折りたたみ済み";
+"debug.load_more" = "さらに読み込む";
+"debug.variable_unavailable" = "メンバーを読み取れません";
+"debug.output" = "出力";
+"debug.input" = "プログラムへの入力";
+"debug.send" = "送信";
+"debug.save_failed" = "現在のファイルを保存できませんでした。";
+"debug.compile_failed" = "デバッグ用のコンパイルに失敗しました。";
+"debug.temporary_filesystem" = "デバッグ中のプログラムが使用するファイルは一時的なものです。";
 
 "remote.setup_remote_server" = "リモート アクセス機能に関するドキュメント";
 "remote.private_key_content" = "秘密鍵の内容";

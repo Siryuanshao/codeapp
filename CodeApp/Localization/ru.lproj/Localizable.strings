@@ -7,8 +7,8 @@
 */
 
 "Welcome Message" =
-"# Code App
-##### **v1.12.3 (Сентябрь 2026)**
+"# Codelet
+##### **v1.13.0**
 #### Начало
 [Новый файл](https://thebaselab.com/code/newfile)
 [Открыть файл](https://thebaselab.com/code/openfile)
@@ -23,6 +23,11 @@
 
 "Changelog.message" =
 "
+### 1.13.0
+- Приложение переименовано в Codelet, значок обновлён.
+- Добавлены автодополнение и отладка C/C++ с точками останова и просмотром глобальных переменных.
+- Улучшены терминал и доступ к папкам.
+
 ### 1.12.3 (Сентябрь 2026)
 - Исправлено отображение турецкого языка в настройках
 - Улучшена совместимость с iOS 27
@@ -582,6 +587,9 @@
 "errors.fs.invalid_host" = "Недопустимый хост";
 "errors.fs.unsupported_encoding" = "Неподдерживаемая кодировка";
 "errors.fs.unknown" = "Неизвестная ошибка";
+"errors.fs.directory_unavailable" = "Не удалось прочитать эту папку.";
+"errors.fs.reselect_folder" = "Чтобы восстановить доступ, выберите «Открыть папку» и снова выберите эту папку.";
+"terminal.directory_unavailable" = "Не удалось открыть папку %@. Откройте её снова.";
 "errors.fs.connection_failure" = "Ошибка подключения";
 "errors.fs.authentication_failure" = "Ошибка авторизации";
 "errors.fs.attempting_to_copy_parent_to_child" = "Источник является родителем цели.";
@@ -708,6 +716,34 @@
 "panel.execution.title" = "Выполнение";
 
 "local.execution.title" = "Локальное выполнение";
+"terminal.process.exited" = "Программа завершилась с кодом: %d";
+"terminal.process.stopped" = "Программа остановлена.";
+"CPP_DEBUG" = "Отладка";
+"debug.idle" = "Нажмите на поле рядом с номером строки, чтобы установить точку останова, затем запустите отладку.";
+"debug.compiling" = "Компиляция…";
+"debug.starting" = "Запуск отладчика…";
+"debug.running" = "Выполняется";
+"debug.paused" = "Приостановлено";
+"debug.finished" = "Отладка завершена";
+"debug.continue" = "Продолжить";
+"debug.step_over" = "Шаг с обходом";
+"debug.step_in" = "Шаг с заходом";
+"debug.step_out" = "Шаг с выходом";
+"debug.restart" = "Перезапустить отладку";
+"debug.stop" = "Остановить отладку";
+"debug.variables" = "Переменные";
+"debug.local_variables" = "Локальные";
+"debug.global_variables" = "Глобальные";
+"debug.expanded" = "Развёрнуто";
+"debug.collapsed" = "Свёрнуто";
+"debug.load_more" = "Загрузить ещё";
+"debug.variable_unavailable" = "Не удалось прочитать члены";
+"debug.output" = "Вывод";
+"debug.input" = "Ввод программы";
+"debug.send" = "Отправить";
+"debug.save_failed" = "Не удалось сохранить текущий файл.";
+"debug.compile_failed" = "Не удалось скомпилировать программу для отладки.";
+"debug.temporary_filesystem" = "Файлы, используемые отлаживаемой программой, являются временными.";
 
 "remote.setup_remote_server" = "Документация о подключениях";
 "remote.private_key_content" = "Содержимое приватного ключа";

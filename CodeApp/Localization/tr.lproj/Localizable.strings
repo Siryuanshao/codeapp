@@ -7,8 +7,8 @@
 */
 
 "Welcome Message" =
-"# Code App
-##### **v1.12.3 (Eylül 2026)**
+"# Codelet
+##### **v1.13.0**
 #### Başlangıç
 [Yeni Dosya](https://thebaselab.com/code/newfile)
 [Dosya Aç](https://thebaselab.com/code/openfile)
@@ -23,6 +23,11 @@
 
 "Changelog.message" =
 "
+### 1.13.0
+- Uygulamanın adı Codelet olarak değiştirildi ve simgesi yenilendi.
+- C/C++ kod tamamlama ve genel değişkenleri gösteren kesme noktalı hata ayıklama eklendi.
+- Terminal ve klasör erişimi iyileştirildi.
+
 ### 1.12.3 (Eylül 2026)
 - Ayarlar'da Türkçe dil görünürlüğü düzeltildi
 - iOS 27 uyumluluğu iyileştirildi
@@ -545,6 +550,9 @@
 "errors.fs.invalid_host" = "Geçersiz ana bilgisayar adı.";
 "errors.fs.unsupported_encoding" = "Desteklenmeyen karakter kodlaması.";
 "errors.fs.unknown" = "Bilinmeyen hata.";
+"errors.fs.directory_unavailable" = "Bu klasör okunamıyor.";
+"errors.fs.reselect_folder" = "Erişimi geri yüklemek için “Klasör Aç”ı seçin ve bu klasörü yeniden seçin.";
+"terminal.directory_unavailable" = "%@ klasörü açılamıyor. Lütfen yeniden açın.";
 "errors.fs.connection_failure" = "Bağlantı hatası.";
 "errors.fs.authentication_failure" = "Kimlik doğrulama hatası.";
 "errors.fs.attempting_to_copy_parent_to_child" = "Bir dizini kendi içine kopyalama girişimi.";
@@ -672,6 +680,34 @@
 "panel.execution.title" = "Çalıştırma";
 
 "local.execution.title" = "Yerel çalıştırma";
+"terminal.process.exited" = "Program şu kodla sona erdi: %d";
+"terminal.process.stopped" = "Program durduruldu.";
+"CPP_DEBUG" = "Hata Ayıklama";
+"debug.idle" = "Kesme noktası ayarlamak için satır numarasının yanındaki boşluğa dokunun, ardından hata ayıklamayı başlatın.";
+"debug.compiling" = "Derleniyor…";
+"debug.starting" = "Hata ayıklayıcı başlatılıyor…";
+"debug.running" = "Çalışıyor";
+"debug.paused" = "Duraklatıldı";
+"debug.finished" = "Hata ayıklama tamamlandı";
+"debug.continue" = "Devam et";
+"debug.step_over" = "Adım atla";
+"debug.step_in" = "İçine gir";
+"debug.step_out" = "Dışarı çık";
+"debug.restart" = "Hata ayıklamayı yeniden başlat";
+"debug.stop" = "Hata ayıklamayı durdur";
+"debug.variables" = "Değişkenler";
+"debug.local_variables" = "Yerel";
+"debug.global_variables" = "Genel";
+"debug.expanded" = "Genişletildi";
+"debug.collapsed" = "Daraltıldı";
+"debug.load_more" = "Daha fazla yükle";
+"debug.variable_unavailable" = "Üyeler okunamadı";
+"debug.output" = "Çıktı";
+"debug.input" = "Program girdisi";
+"debug.send" = "Gönder";
+"debug.save_failed" = "Geçerli dosya kaydedilemedi.";
+"debug.compile_failed" = "Hata ayıklama derlemesi başarısız oldu.";
+"debug.temporary_filesystem" = "Hata ayıklanan programın eriştiği dosyalar geçicidir.";
 
 "remote.setup_remote_server" = "Uzaktan erişim özelliği belgeleri";
 "remote.private_key_content" = "Özel anahtar içeriği";
