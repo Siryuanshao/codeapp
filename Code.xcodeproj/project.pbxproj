@@ -13,8 +13,6 @@
 		94127C40280335C8008C7F82 /* Themes in Resources */ = {isa = PBXBuildFile; fileRef = 94127C3F280335C8008C7F82 /* Themes */; };
 		94127C41280335C8008C7F82 /* Themes in Resources */ = {isa = PBXBuildFile; fileRef = 94127C3F280335C8008C7F82 /* Themes */; };
 		941969252802AB2C008AAEB2 /* FileSystemProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 941969242802AB2C008AAEB2 /* FileSystemProvider.swift */; };
-		CB06A9110000000000000002 /* WorkspaceAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB06A9110000000000000001 /* WorkspaceAccess.swift */; };
-		CB06A9110000000000000003 /* WorkspaceAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB06A9110000000000000001 /* WorkspaceAccess.swift */; };
 		941969292802AB64008AAEB2 /* FTPFileSystemProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 941969282802AB64008AAEB2 /* FTPFileSystemProvider.swift */; };
 		9419692B2802AB88008AAEB2 /* LocalFileSystemProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9419692A2802AB88008AAEB2 /* LocalFileSystemProvider.swift */; };
 		9419692D2803117D008AAEB2 /* InfiniteProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9419692C2803117D008AAEB2 /* InfiniteProgressView.swift */; };
@@ -653,8 +651,6 @@
 		949B3CBB25DBCCDC00BC83B5 /* MonacoIntellisenseExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949B3CBA25DBCCDB00BC83B5 /* MonacoIntellisenseExtension.swift */; };
 		949B3CC525DEA89B00BC83B5 /* String+toCString.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949B3CC425DEA89A00BC83B5 /* String+toCString.swift */; };
 		949B3CC725DEAAA700BC83B5 /* node.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949B3CC625DEAAA600BC83B5 /* node.swift */; };
-		CB06A9100000000000000002 /* CPPDebugger.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB06A9100000000000000001 /* CPPDebugger.swift */; };
-		CB06A9100000000000000003 /* CPPDebugger.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB06A9100000000000000001 /* CPPDebugger.swift */; };
 		949CDF4A2C6658DC00FFC5B1 /* LanguageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949CDF492C6658DC00FFC5B1 /* LanguageService.swift */; };
 		949CDF4B2C6658DC00FFC5B1 /* LanguageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949CDF492C6658DC00FFC5B1 /* LanguageService.swift */; };
 		949CDF4D2C6C47AD00FFC5B1 /* LSPFrameAdaptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949CDF4C2C6C47AD00FFC5B1 /* LSPFrameAdaptor.swift */; };
@@ -917,6 +913,10 @@
 		9FE3E2AA298A169300F63DD0 /* Dynamic in Frameworks */ = {isa = PBXBuildFile; productRef = 9FE3E2A9298A169300F63DD0 /* Dynamic */; };
 		9FE3E2AC298A169B00F63DD0 /* SwiftGit2 in Frameworks */ = {isa = PBXBuildFile; productRef = 9FE3E2AB298A169A00F63DD0 /* SwiftGit2 */; };
 		9FE3E2AD298A16A300F63DD0 /* NMSSH.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 942E321128093CA600233441 /* NMSSH.xcframework */; };
+		CB06A9100000000000000002 /* CPPDebugger.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB06A9100000000000000001 /* CPPDebugger.swift */; };
+		CB06A9100000000000000003 /* CPPDebugger.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB06A9100000000000000001 /* CPPDebugger.swift */; };
+		CB06A9110000000000000002 /* WorkspaceAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB06A9110000000000000001 /* WorkspaceAccess.swift */; };
+		CB06A9110000000000000003 /* WorkspaceAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB06A9110000000000000001 /* WorkspaceAccess.swift */; };
 		FFD081B82925F8FB001D9373 /* TextEditorWithPlaceholder.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFD081B72925F8FB001D9373 /* TextEditorWithPlaceholder.swift */; };
 		FFD081B92925F8FB001D9373 /* TextEditorWithPlaceholder.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFD081B72925F8FB001D9373 /* TextEditorWithPlaceholder.swift */; };
 		FFD081BB29260B00001D9373 /* Libgit2Error.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFD081BA29260B00001D9373 /* Libgit2Error.swift */; };
@@ -1858,8 +1858,6 @@
 		949B3CBA25DBCCDB00BC83B5 /* MonacoIntellisenseExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonacoIntellisenseExtension.swift; sourceTree = "<group>"; };
 		949B3CC425DEA89A00BC83B5 /* String+toCString.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+toCString.swift"; sourceTree = "<group>"; };
 		949B3CC625DEAAA600BC83B5 /* node.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = node.swift; sourceTree = "<group>"; };
-		CB06A9100000000000000001 /* CPPDebugger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CPPDebugger.swift; sourceTree = "<group>"; };
-		CB06A9110000000000000001 /* WorkspaceAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceAccess.swift; sourceTree = "<group>"; };
 		949CDF492C6658DC00FFC5B1 /* LanguageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageService.swift; sourceTree = "<group>"; };
 		949CDF4C2C6C47AD00FFC5B1 /* LSPFrameAdaptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LSPFrameAdaptor.swift; sourceTree = "<group>"; };
 		949D787E2C33C4EB006D7480 /* Java.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Java.swift; sourceTree = "<group>"; };
@@ -1983,9 +1981,7 @@
 		94FF337328435158003DE5DD /* SettingsFontPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsFontPicker.swift; sourceTree = "<group>"; };
 		94FF33882843744C003DE5DD /* FiraCode-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = "FiraCode-Regular.ttf"; path = "Dependencies/monaco-textmate.bundle/fonts/FiraCode-Regular.ttf"; sourceTree = "<group>"; };
 		9DA5FA622D7A51B30010CE11 /* ru */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ru; path = ru.lproj/Localizable.strings; sourceTree = "<group>"; };
-		A1B2C3D52D90000100AA0002 /* tr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = tr; path = tr.lproj/Localizable.strings; sourceTree = "<group>"; };
 		9DFB70332D7A78B2005A5BB4 /* ru */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ru; path = ru.lproj/InfoPlist.strings; sourceTree = "<group>"; };
-		A1B2C3D42D90000100AA0001 /* tr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = tr; path = tr.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		9F046C312922203E00BDE4E9 /* ToolbarManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarManager.swift; sourceTree = "<group>"; };
 		9F046C3429222D8E00BDE4E9 /* ExtensionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionManager.swift; sourceTree = "<group>"; };
 		9F046C3929223D1600BDE4E9 /* RemoteExecutionExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteExecutionExtension.swift; sourceTree = "<group>"; };
@@ -2039,6 +2035,10 @@
 		9FDAD1B8296EAC3C00E8AEB2 /* SourceControlTemplateSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceControlTemplateSection.swift; sourceTree = "<group>"; };
 		9FE3E292298A14BC00F63DD0 /* CodeUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CodeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		9FE3E294298A14BC00F63DD0 /* CodeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeUITests.swift; sourceTree = "<group>"; };
+		A1B2C3D42D90000100AA0001 /* tr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = tr; path = tr.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		A1B2C3D52D90000100AA0002 /* tr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = tr; path = tr.lproj/Localizable.strings; sourceTree = "<group>"; };
+		CB06A9100000000000000001 /* CPPDebugger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CPPDebugger.swift; sourceTree = "<group>"; };
+		CB06A9110000000000000001 /* WorkspaceAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceAccess.swift; sourceTree = "<group>"; };
 		FFD081B72925F8FB001D9373 /* TextEditorWithPlaceholder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextEditorWithPlaceholder.swift; sourceTree = "<group>"; };
 		FFD081BA29260B00001D9373 /* Libgit2Error.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Libgit2Error.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -4061,7 +4061,7 @@
 				CURRENT_PROJECT_VERSION = 87;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "\"CodeApp/Preview Content\"";
-				DEVELOPMENT_TEAM = 69R94YG49H;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_BITCODE = NO;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_TESTING_SEARCH_PATHS = NO;
@@ -4081,7 +4081,7 @@
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				MARKETING_VERSION = 1.12.3;
 				OTHER_SWIFT_FLAGS = "-Xcc -Wno-incomplete-umbrella";
-				PRODUCT_BUNDLE_IDENTIFIER = "thebaselab.VS-Code";
+				PRODUCT_BUNDLE_IDENTIFIER = com.carllin.vscode;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRIP_STYLE = "non-global";
@@ -4103,12 +4103,12 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = "Code App.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Distribution";
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 87;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "\"CodeApp/Preview Content\"";
-				DEVELOPMENT_TEAM = 69R94YG49H;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_BITCODE = NO;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_TESTING_SEARCH_PATHS = NO;
@@ -4129,9 +4129,9 @@
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				MARKETING_VERSION = 1.12.3;
 				OTHER_SWIFT_FLAGS = "-Xcc -Wno-incomplete-umbrella";
-				PRODUCT_BUNDLE_IDENTIFIER = "thebaselab.VS-Code";
+				PRODUCT_BUNDLE_IDENTIFIER = com.carllin.vscode;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "match AppStore thebaselab.VS-Code";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRIP_STYLE = "non-global";
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_INSTALL_OBJC_HEADER = NO;
@@ -4151,7 +4151,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 87;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = 69R94YG49H;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_BITCODE = NO;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
@@ -4166,8 +4166,8 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.7.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "thebaselab.VS-Code.extension";
+				MARKETING_VERSION = 1.12.3;
+				PRODUCT_BUNDLE_IDENTIFIER = com.carllin.vscode.extension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
@@ -4184,10 +4184,10 @@
 			buildSettings = {
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = NodeExtension/extension.entitlements;
-				CODE_SIGN_IDENTITY = "iPhone Distribution";
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 87;
-				DEVELOPMENT_TEAM = 69R94YG49H;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_BITCODE = NO;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
@@ -4202,10 +4202,10 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.7.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "thebaselab.VS-Code.extension";
+				MARKETING_VERSION = 1.12.3;
+				PRODUCT_BUNDLE_IDENTIFIER = com.carllin.vscode.extension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "match AppStore thebaselab.VS-Code.extension";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "NodeExtension/NodeRunner/extension-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
@@ -4347,7 +4347,7 @@
 				CURRENT_PROJECT_VERSION = 87;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "\"CodeApp/Preview Content\"";
-				DEVELOPMENT_TEAM = 69R94YG49H;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_BITCODE = NO;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_TESTING_SEARCH_PATHS = NO;
@@ -4367,7 +4367,7 @@
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				MARKETING_VERSION = 1.12.3;
 				OTHER_SWIFT_FLAGS = "-Xcc -Wno-incomplete-umbrella";
-				PRODUCT_BUNDLE_IDENTIFIER = "thebaselab.VS-Code";
+				PRODUCT_BUNDLE_IDENTIFIER = com.carllin.vscode;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRIP_STYLE = "non-global";
@@ -4388,12 +4388,12 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = "Code App.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Distribution";
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 87;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "\"CodeApp/Preview Content\"";
-				DEVELOPMENT_TEAM = 69R94YG49H;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_BITCODE = NO;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_TESTING_SEARCH_PATHS = NO;
@@ -4414,9 +4414,9 @@
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				MARKETING_VERSION = 1.12.3;
 				OTHER_SWIFT_FLAGS = "-Xcc -Wno-incomplete-umbrella";
-				PRODUCT_BUNDLE_IDENTIFIER = "thebaselab.VS-Code";
+				PRODUCT_BUNDLE_IDENTIFIER = com.carllin.vscode;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "match AppStore thebaselab.VS-Code";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRIP_STYLE = "non-global";
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_OBJC_BRIDGING_HEADER = "CodeApp/Utilities/Code-Bridging-Header.h";
@@ -4433,11 +4433,11 @@
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 69R94YG49H;
+				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.1;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = thebaselab.CodeUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.carllin.vscode.UITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
@@ -4453,11 +4453,11 @@
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 69R94YG49H;
+				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.1;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = thebaselab.CodeUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.carllin.vscode.UITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
