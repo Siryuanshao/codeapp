@@ -52,7 +52,8 @@ final class CPPDebugger: NSObject, ObservableObject, WKNavigationDelegate, WKScr
     @Published var localsExpanded = true
     @Published var globalsExpanded = false
 
-    private let compilerQueue = DispatchQueue(label: "com.codeapp.cpp-debug-compiler", qos: .userInitiated)
+    private let compilerQueue = DispatchQueue(
+        label: "com.codeapp.cpp-debug-compiler", qos: .userInitiated)
     private weak var app: MainApp?
     private var sourceURL: URL?
     private var sourceAccess: WorkspaceAccess?
@@ -66,7 +67,9 @@ final class CPPDebugger: NSObject, ObservableObject, WKNavigationDelegate, WKScr
         configuration.userContentController.add(self, name: "cppDebugger")
         let view = WKWebView(frame: .zero, configuration: configuration)
         view.navigationDelegate = self
-        view.load(URLRequest(url: URL(string: "http://localhost:\(WASMService.PORT)/debugger/index.html")!))
+        view.load(
+            URLRequest(
+                url: URL(string: "http://localhost:\(WASMService.PORT)/debugger/index.html")!))
         return view
     }()
 
@@ -162,37 +165,44 @@ final class CPPDebugger: NSObject, ObservableObject, WKNavigationDelegate, WKScr
     func command(_ name: String) {
         guard state == .paused else { return }
         webView.callAsyncJavaScript(
-            "window.codeappDebugger.command(name); return true;", arguments: ["name": name], in: nil,
+            "window.codeappDebugger.command(name); return true;", arguments: ["name": name],
+            in: nil,
             in: .page)
     }
 
     func sendInput(_ text: String) {
         guard state.isActive, isWebViewReady else { return }
         webView.callAsyncJavaScript(
-            "window.codeappDebugger.input(text); return true;", arguments: ["text": text + "\n"], in: nil,
+            "window.codeappDebugger.input(text); return true;", arguments: ["text": text + "\n"],
+            in: nil,
             in: .page)
     }
 
     func toggleVariable(_ id: String) {
         guard state == .paused else { return }
         webView.callAsyncJavaScript(
-            "window.codeappDebugger.toggleVariable(id); return true;", arguments: ["id": id], in: nil,
+            "window.codeappDebugger.toggleVariable(id); return true;", arguments: ["id": id],
+            in: nil,
             in: .page)
     }
 
     func loadMoreVariables(_ id: String) {
         guard state == .paused else { return }
         webView.callAsyncJavaScript(
-            "window.codeappDebugger.loadMoreVariables(id); return true;", arguments: ["id": id], in: nil,
+            "window.codeappDebugger.loadMoreVariables(id); return true;", arguments: ["id": id],
+            in: nil,
             in: .page)
     }
 
     func breakpointsChanged(uri: String, lines: [Int]) {
-        guard let sourceURL, URL(string: uri)?.path == sourceURL.path, state.isActive else { return }
+        guard let sourceURL, URL(string: uri)?.path == sourceURL.path, state.isActive else {
+            return
+        }
         currentBreakpoints = lines
         guard isWebViewReady else { return }
         webView.callAsyncJavaScript(
-            "window.codeappDebugger.setBreakpoints(lines); return true;", arguments: ["lines": lines], in: nil,
+            "window.codeappDebugger.setBreakpoints(lines); return true;",
+            arguments: ["lines": lines], in: nil,
             in: .page)
     }
 
@@ -233,7 +243,8 @@ final class CPPDebugger: NSObject, ObservableObject, WKNavigationDelegate, WKScr
             currentFile = (body["sourcePath"] as? String).map {
                 URL(fileURLWithPath: $0).lastPathComponent
             }
-            variables = (body["variables"] as? [[String: Any]] ?? []).compactMap(CPPDebugVariable.init)
+            variables = (body["variables"] as? [[String: Any]] ?? []).compactMap(
+                CPPDebugVariable.init)
             if let sourceURL, let path = body["sourcePath"] as? String, path == sourceURL.path,
                 line > 0, let monaco = app?.monacoInstance as? MonacoImplementation
             {
@@ -241,7 +252,8 @@ final class CPPDebugger: NSObject, ObservableObject, WKNavigationDelegate, WKScr
             }
         case "variables":
             guard state == .paused else { return }
-            variables = (body["variables"] as? [[String: Any]] ?? []).compactMap(CPPDebugVariable.init)
+            variables = (body["variables"] as? [[String: Any]] ?? []).compactMap(
+                CPPDebugVariable.init)
         case "output":
             output += body["text"] as? String ?? ""
         case "exited":
@@ -266,7 +278,8 @@ final class CPPDebugger: NSObject, ObservableObject, WKNavigationDelegate, WKScr
         pendingStart = nil
         payload["breakpoints"] = currentBreakpoints
         webView.callAsyncJavaScript(
-            "window.codeappDebugger.start(payload); return true;", arguments: ["payload": payload], in: nil,
+            "window.codeappDebugger.start(payload); return true;", arguments: ["payload": payload],
+            in: nil,
             in: .page
         ) { result in
             if case .failure(let error) = result { self.fail(error.localizedDescription) }
@@ -276,7 +289,9 @@ final class CPPDebugger: NSObject, ObservableObject, WKNavigationDelegate, WKScr
     private func clearLine() {
         currentLine = nil
         currentFile = nil
-        guard let sourceURL, let monaco = app?.monacoInstance as? MonacoImplementation else { return }
+        guard let sourceURL, let monaco = app?.monacoInstance as? MonacoImplementation else {
+            return
+        }
         Task { await monaco.showDebugLine(url: sourceURL, line: 0) }
     }
 
@@ -498,7 +513,8 @@ struct CPPDebugFloatingToolbar: View {
     }
 
     private var blue: Color {
-        colorScheme == .dark ? Color(red: 0.40, green: 0.72, blue: 0.98)
+        colorScheme == .dark
+            ? Color(red: 0.40, green: 0.72, blue: 0.98)
             : Color(red: 0.02, green: 0.42, blue: 0.78)
     }
 
@@ -538,23 +554,36 @@ struct CPPDebugFloatingToolbar: View {
                                     width: offset.width + value.translation.width,
                                     height: offset.height + value.translation.height
                                 )
-                                let horizontalLimit = max(0, (availableSize.width - toolbarWidth) / 2)
+                                let horizontalLimit = max(
+                                    0, (availableSize.width - toolbarWidth) / 2)
                                 let verticalLimit = max(0, availableSize.height - toolbarHeight - 6)
-                                offset.width = min(horizontalLimit, max(-horizontalLimit, offset.width))
+                                offset.width = min(
+                                    horizontalLimit, max(-horizontalLimit, offset.width))
                                 offset.height = min(verticalLimit, max(0, offset.height))
                             }
                     )
                     .accessibilityHidden(true)
-                button("play.fill", "debug.continue", color: blue, enabled: debugger.state == .paused) {
+                button(
+                    "play.fill", "debug.continue", color: blue, enabled: debugger.state == .paused
+                ) {
                     debugger.command("continue")
                 }
-                button("arrow.turn.down.right", "debug.step_over", color: blue, enabled: debugger.state == .paused) {
+                button(
+                    "arrow.turn.down.right", "debug.step_over", color: blue,
+                    enabled: debugger.state == .paused
+                ) {
                     debugger.command("next")
                 }
-                button("arrow.down.to.line", "debug.step_in", color: blue, enabled: debugger.state == .paused) {
+                button(
+                    "arrow.down.to.line", "debug.step_in", color: blue,
+                    enabled: debugger.state == .paused
+                ) {
                     debugger.command("stepIn")
                 }
-                button("arrow.up.to.line", "debug.step_out", color: blue, enabled: debugger.state == .paused) {
+                button(
+                    "arrow.up.to.line", "debug.step_out", color: blue,
+                    enabled: debugger.state == .paused
+                ) {
                     debugger.command("stepOut")
                 }
                 button("arrow.counterclockwise", "debug.restart", color: .green) {

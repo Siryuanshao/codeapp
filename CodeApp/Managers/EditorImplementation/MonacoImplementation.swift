@@ -83,7 +83,8 @@ final class CPPBreakpointStore {
         var changed = false
         for (workspace, files) in workspaces {
             let remaining = files.filter { path, _ in
-                !URL(fileURLWithPath: path).standardizedFileURL.pathComponents.starts(with: deletedPath)
+                !URL(fileURLWithPath: path).standardizedFileURL.pathComponents.starts(
+                    with: deletedPath)
             }
             if remaining.count != files.count {
                 changed = true
@@ -198,7 +199,8 @@ class MonacoImplementation: NSObject {
         await applyOptions(options: "minimap: {enabled: \(options.miniMapEnabled)}")
         await applyOptions(options: "lineNumbers: \(options.lineNumbersEnabled)")
         await applyOptions(options: "smoothScrolling: \(options._smoothScrollingEnabled)")
-        await applyOptions(options: "readOnly: \(options.readOnly)")
+        await applyOptions(
+            options: "readOnly: \(options.readOnly), domReadOnly: \(options.readOnly)")
         await applyOptions(options: "tabSize: \(String(options.tabRenderSize))")
         await applyOptions(options: "renderWhitespace: '\(options.renderWhiteSpaces)'")
         await applyOptions(options: "wordWrap: '\(options.wordWrap)'")
@@ -314,7 +316,7 @@ extension MonacoImplementation: WKScriptMessageHandlerWithReply {
         _ userContentController: WKUserContentController, didReceive message: WKScriptMessage,
         replyHandler: @escaping (Any?, String?) -> Void
     ) {
-        guard (UserDefaults.standard.object(forKey: "languageServiceEnabled") as? Bool ?? true),
+        guard UserDefaults.standard.object(forKey: "languageServiceEnabled") as? Bool ?? true,
             let body = message.body as? [String: Any],
             let source = body["source"] as? String,
             let uri = body["uri"] as? String, let url = URL(string: uri), url.isFileURL,
@@ -345,7 +347,8 @@ extension MonacoImplementation: WKScriptMessageHandler {
         case "C++ Breakpoints Changed":
             guard let uri = result["URI"] as? String, let url = URL(string: uri), url.isFileURL,
                 let workspace = result["workspace"] as? String,
-                let lines = result["lines"] as? [Int] else {
+                let lines = result["lines"] as? [Int]
+            else {
                 return
             }
             breakpointStore.save(lines, for: url, workspace: workspace)
@@ -434,7 +437,8 @@ extension MonacoImplementation: EditorImplementation {
         }
         var restore = ""
         if let file = URL(string: url), file.isFileURL {
-            let root = app?.currentWorkspaceBookmarkURL ?? app?.workSpaceStorage.currentDirectory._url
+            let root =
+                app?.currentWorkspaceBookmarkURL ?? app?.workSpaceStorage.currentDirectory._url
             let workspace = breakpointStore.workspace(for: file, root: root)
             if let encodedWorkspace = workspace.base64Encoded() {
                 let lines = breakpointStore.lines(for: file, workspace: workspace)
